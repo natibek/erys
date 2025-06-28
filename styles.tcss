@@ -1,0 +1,7 @@
+DirectoryTree {
+    dock: left;
+}
+
+TextArea {
+    height: 4;
+}
