@@ -44,23 +44,23 @@ class NotebookApp(App):
         super().__init__()
         self.theme = "textual-dark"
         self.paths = paths
-        self.num_tabs = len(paths)
+        self.cur_tab = len(paths)
         self.tab_to_nb_id_map: dict[str,int] = {}
 
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
-        # yield Header()
         # yield DirectorySideBar()
 
         # yield MENUBAR
+        yield Header()
 
-        # https://textual.textualize.io/widgets/tabs/#__tabbed_1_2 TABS FOR EACH FILE
-        yield Tabs(*[path for path in self.paths])
-        with ContentSwitcher(id="tab-content", initial="tab0"):
-            for idx, path in enumerate(self.paths):
-                self.tab_to_nb_id_map[path] = idx
-                yield NotebookTab(path, "tab" + str(idx))
+        with Vertical():
+            yield Tabs(*[path for path in self.paths])
+            with ContentSwitcher(id="tab-content"):
+                for idx, path in enumerate(self.paths):
+                    self.tab_to_nb_id_map[path] = f"tab{idx}"
+                    yield NotebookTab(path, f"tab{idx}")
          
         yield Footer()
 
@@ -70,17 +70,24 @@ class NotebookApp(App):
         if event.tab is None:
             # When the tabs are cleared, event.tab will be None
             pass
+        elif event.tab.label in self.tab_to_nb_id_map:
+            switcher.current = f"{self.tab_to_nb_id_map[event.tab.label]}"
         else:
-            switcher.current = "tab" + str(self.tab_to_nb_id_map[event.tab.label])
+            tab_id = event.tab.label
+            new_notebook = NotebookTab("", f"{tab_id}")
+            switcher.mount(new_notebook)
+            switcher.current = f"{tab_id}"
+            self.tab_to_nb_id_map[f"{tab_id}"] = tab_id
 
     def on_mount(self) -> None:
         """Focus the tabs when the app starts."""
         self.query_one(Tabs).focus()
 
-    def add_tab(self) -> None:
+    def action_add(self) -> None:
         tabs = self.query_one(Tabs)
-        tabs.add_tab(self.num_tabs)
-        self.num_tabs += 1
+        tabs.add_tab(f"tab{self.cur_tab}")
+        self.cur_tab += 1
+
 
     def action_remove(self) -> None:
         """Remove active tab."""

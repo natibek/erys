@@ -1,8 +1,7 @@
 from textual.app import ComposeResult
-from textual.widgets import Button, Rule, Tabs
+from textual.widgets import Button, Rule
 from textual.containers import HorizontalGroup, VerticalScroll, Container
 from textual.events import Key, DescendantFocus
-from textual.widget import Widget
 from notebook import Notebook
 
 import os.path
