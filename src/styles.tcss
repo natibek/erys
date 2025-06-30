@@ -1,3 +1,6 @@
+Tabs {
+    dock: top;
+}
 #tree-sidebar {
     dock: left;
     width: 30%;

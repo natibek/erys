@@ -1,7 +1,6 @@
 from textual.app import ComposeResult
 from textual.widgets import Markdown, TextArea, ContentSwitcher
 from textual.events import Key, MouseDown
-from widgets import ExpandingTextArea
 from textual.containers import HorizontalGroup
 from typing import Any
 from time import time
@@ -44,7 +43,7 @@ class MarkdownCell(HorizontalGroup):
 
     def compose(self) -> ComposeResult:
         with ContentSwitcher(initial="markdown", id="text-cell"):
-            yield ExpandingTextArea(self.source, id="raw-text")
+            yield TextArea(self.source, id="raw-text")
             yield FocusMarkdown(self.source, id="markdown")
 
     def on_key(self, event: Key) -> None:
