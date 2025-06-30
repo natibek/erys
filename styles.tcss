@@ -1,7 +1,48 @@
-DirectoryTree {
+#tree-sidebar {
     dock: left;
+    width: 30%;
 }
 
-TextArea {
+Collapsible {
+    height: 1fr;
+}
+
+Markdown, TextArea {
     height: 4;
+}
+
+MarkdownCell, ExpandingTextArea {
+    padding: 1;
+}
+
+CodeCell{
+    padding: 1;
+    padding-left: 1;
+    padding-right: 0;
+}
+
+#code-sidebar {
+    width: 5;
+    padding: 0;
+    margin: 0;
+    height: auto;
+    align-horizontal: center;
+}
+
+#code-editor {
+    width: 1fr;
+    padding: 0;
+    margin: 0;
+}
+
+#run-button {
+    align-vertical: top;
+    height: 1;
+    width: 1;
+}
+
+#exec-count {
+    width: auto;
+    height: auto;
+    margin: 1 0 0 1;
 }
