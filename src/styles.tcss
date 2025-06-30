@@ -11,7 +11,7 @@ Markdown, TextArea {
     height: 4;
 }
 
-MarkdownCell, ExpandingTextArea {
+Markdown, MarkdownCell {
     padding: 1;
 }
 
@@ -45,4 +45,8 @@ CodeCell{
     width: auto;
     height: auto;
     margin: 1 0 0 1;
+}
+
+#cell-container {
+    margin: 2 1;
 }

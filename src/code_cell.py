@@ -9,10 +9,17 @@ from textual.events import Key
 
 class CodeArea(TextArea):
     offset_val: int = reactive(1)
+    closing_map = {"{":"}", "(":")","[":"]","'":"'",'"':'"'}
     def on_key(self, event: Key) -> None:
+        if event.character in self.closing_map:
+            self.insert(f"{event.character}{self.closing_map[event.character]}")
+            self.move_cursor_relative(columns=-1)
+            event.prevent_default()
+            return
+
         match event.key:
             case "escape":
-                pass
+                event.stop()
             case "enter":
                 cur_height = self.styles.height.cells
                 if cur_height + 1 > MIN_HEIGHT:
