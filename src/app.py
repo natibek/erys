@@ -1,23 +1,20 @@
 from textual.app import App, ComposeResult
-from textual.widgets import Footer, Header, Button, DirectoryTree, Collapsible, Static, Markdown
-from textual.widget import Widget
+from textual.widgets import Footer, Header, Button, DirectoryTree, Collapsible, Tabs, Label, ContentSwitcher, Static
 from textual.containers import HorizontalGroup, VerticalScroll, Container, Vertical
-from textual.events import Key, DescendantFocus
-from notebook import Notebook
+from notebook_tab import NotebookTab
+from textual.events import Key
+import sys
 
-from time import time
-
-from markdown_cell import MarkdownCell, FocusMarkdown
-from code_cell import CodeCell, CodeArea
-from utils import DOUBLE_CLICK_INTERVAL
-
-class ButtonRow(HorizontalGroup):
-    def compose(self) -> ComposeResult:
-        yield Button("Code", id="add-code-cell")
-        yield Button("Markdown", id="add-markdown-cell")
-        yield Button("Run All", id="run-all")
-        yield Button("Restart", id="restart")
-
+NAMES = [
+    "Paul Atreidies",
+    "Duke Leto Atreides",
+    "Lady Jessica",
+    "Gurney Halleck",
+    "Baron Vladimir Harkonnen",
+    "Glossu Rabban",
+    "Chani",
+    "Silgar",
+]
 
 class DirectorySideBar(Container):
     def compose(self) -> ComposeResult:
@@ -27,72 +24,83 @@ class DirectorySideBar(Container):
             with Collapsible(id="tree-panel"):
                 yield DirectoryTree(".", id="file-tree")
 
+# class NotebookTab(Static):
+#     def __init__(self, path: str, tab_id: str):
+#         super().__init__(f"Notebook for {path}", id=tab_id)
+
 class NotebookApp(App):
     """A Textual app to manage stopwatches."""
 
     _last_click_time: float = 0.0
     CSS_PATH = "styles.tcss"
-    # BINDINGS = [
-    #     ("d", "toggle_dark", "Toggle dark mode"),
-    # ]
-    def __init__(self) -> None:
+
+    BINDINGS = [
+        ("n", "add", "Add tab"),
+        ("r", "remove", "Remove active tab"),
+        ("c", "clear", "Clear tabs"),
+    ]
+
+    def __init__(self, paths: list[str]) -> None:
         super().__init__()
         self.theme = "textual-dark"
-        self.last_focused = None
+        self.paths = paths
+        self.num_tabs = len(paths)
+        self.tab_to_nb_id_map: dict[str,int] = {}
+
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
-        yield Header()
-        # yield DirectoryTree(".")
+        # yield Header()
         # yield DirectorySideBar()
-        yield ButtonRow()
-        yield VerticalScroll(id="cell-container")
+
+        # yield MENUBAR
+
+        # https://textual.textualize.io/widgets/tabs/#__tabbed_1_2 TABS FOR EACH FILE
+        yield Tabs(*[path for path in self.paths])
+        with ContentSwitcher(id="tab-content", initial="tab0"):
+            for idx, path in enumerate(self.paths):
+                self.tab_to_nb_id_map[path] = idx
+                yield NotebookTab(path, "tab" + str(idx))
+         
         yield Footer()
 
-    def on_descendant_focus(self, event: DescendantFocus) -> None:
-        # Ignore buttons
-        if isinstance(event.widget, CodeCell) or isinstance(event.widget, MarkdownCell):
-            self.last_focused = event.widget
-        elif isinstance(event.widget, CodeArea):
-            self.last_focused = event.widget.parent
-        elif isinstance(event.widget, FocusMarkdown):
-            self.last_focused = event.widget.parent.parent
-        elif not isinstance(event.widget, Button):
-            self.last_focused = None
+    def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
+        """Handle TabActivated message sent by Tabs."""
+        switcher = self.query_one("#tab-content", ContentSwitcher)
+        if event.tab is None:
+            # When the tabs are cleared, event.tab will be None
+            pass
+        else:
+            switcher.current = "tab" + str(self.tab_to_nb_id_map[event.tab.label])
 
-    def add_cell(self, cell_type: str, position: str = "after") -> None:
-        """
-        Position is after or before. 
-        """
-        kwargs = {position:self.last_focused}
-        container = self.query_one("#cell-container", VerticalScroll)
-        container.mount(cell_type(), **kwargs)
+    def on_mount(self) -> None:
+        """Focus the tabs when the app starts."""
+        self.query_one(Tabs).focus()
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        match event.button.id:
-            case "add-code-cell":
-                self.add_cell(CodeCell)
-            case "add-markdown-cell":
-                self.add_cell(MarkdownCell)
+    def add_tab(self) -> None:
+        tabs = self.query_one(Tabs)
+        tabs.add_tab(self.num_tabs)
+        self.num_tabs += 1
+
+    def action_remove(self) -> None:
+        """Remove active tab."""
+        tabs = self.query_one(Tabs)
+        active_tab = tabs.active_tab
+        if active_tab is not None:
+            tabs.remove_tab(active_tab.id)
+            del self.tab_to_nb_id_map[active_tab.label] 
+
+    def action_clear(self) -> None:
+        """Clear the tabs."""
+        self.query_one(Tabs).clear()
 
     def on_key(self, event: Key) -> None:
         match event.key:
             case "escape": 
                 self.set_focus(None)
-                self.last_focused= None
-            case "a":
-                self.add_cell(CodeCell, "after")
-            case "b":
-                self.add_cell(CodeCell, "before")
-            case "d":
-                now = time()
-                if now - self._last_click_time <=  DOUBLE_CLICK_INTERVAL:
-                    if self.last_focused: 
-                        self.last_focused.remove()
-                        self.last_focused = None
-                self._last_click_time = now
-
+    
 
 if __name__ == "__main__":
-    app = NotebookApp()
+
+    app = NotebookApp(sys.argv[1:])
     app.run()

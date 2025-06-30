@@ -1,6 +1,6 @@
 from textual.app import ComposeResult
 from textual.widgets import Button, Rule, Tabs
-from textual.containers import HorizontalGroup, VerticalScroll
+from textual.containers import HorizontalGroup, VerticalScroll, Container
 from textual.events import Key, DescendantFocus
 from textual.widget import Widget
 from notebook import Notebook
@@ -20,27 +20,28 @@ class ButtonRow(HorizontalGroup):
         yield Button("▶ Run All", id="run-all")
         yield Button("🔁 Restart", id="restart")
 
-class NotebookTab(Widget):
+class NotebookTab(Container):
     """A Textual app to manage stopwatches."""
 
     _last_click_time: float = 0.0
+    last_focused = None
+    cur_exec_count = 0
     BINDINGS = [
         ("a", "add_after", "Add cell after"),
         ("b", "add_before", "Add cell before"),
         ("dd", "delete", "Delete cell"),
     ]
-    def __init__(self, path: str | None = None) -> None:
-        super().__init__()
-        self.last_focused = None
-        self.path = path
+    def __init__(self, path: str, id: str) -> None:
+        super().__init__(id=id)
 
+        self.path = path
 
     def on_mount(self):
         self.load_notebook()
 
     def load_notebook(self):
         if not os.path.exists(self.path):
-            pass
+            return
 
         with open(self.path, "r") as notebook_file:
             content = json.load(notebook_file)
@@ -65,7 +66,6 @@ class NotebookTab(Widget):
         """Create child widgets for the app."""
         yield ButtonRow()
         yield Rule(line_style="double", id="header-rule")
-        # https://textual.textualize.io/widgets/tabs/#__tabbed_1_2 TABS FOR EACH FILE
         yield VerticalScroll(id="cell-container")
 
     def on_descendant_focus(self, event: DescendantFocus) -> None:
@@ -85,7 +85,8 @@ class NotebookTab(Widget):
         """
         kwargs = {position:self.last_focused}
         container = self.query_one("#cell-container", VerticalScroll)
-        container.mount(cell_type(**cell_kwargs), **kwargs)
+        widget = cell_type(**cell_kwargs)
+        container.mount(widget, **kwargs)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
