@@ -26,11 +26,11 @@ class MarkdownCell(HorizontalGroup):
     _last_click_time: float = 0.0
 
     def __init__(
-            self, 
-            source: str = "",
-            metadata: dict[str, Any] = {},
-            cell_id: str | None = None,
-            ) -> None:
+        self, 
+        source: str = "",
+        metadata: dict[str, Any] = {},
+        cell_id: str | None = None,
+    ) -> None:
         super().__init__()
         self.source = source
         self.metadata = metadata

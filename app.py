@@ -1,19 +1,21 @@
+from textual.reactive import var
 from textual.app import App, ComposeResult
-from textual.widgets import Footer, Header, Button, DirectoryTree, Collapsible
+from textual.widgets import Footer, Header, Button, DirectoryTree, Collapsible, Static, Markdown
 from textual.widget import Widget
-from textual.containers import HorizontalGroup, Vertical, Container
-from textual.events import Key
+from textual.containers import HorizontalGroup, VerticalScroll, Container, Vertical
+from textual.events import Key, Focus, DescendantFocus
 from notebook import Notebook
 
-from markdown_cell import MarkdownCell
-from code_cell import CodeCell
+from markdown_cell import MarkdownCell, FocusMarkdown
+from code_cell import CodeCell, CodeArea
 
 class ButtonRow(HorizontalGroup):
     def compose(self) -> ComposeResult:
-        yield Button("Code")
-        yield Button("Markdown")
-        yield Button("Run All")
-        yield Button("Restart")
+        yield Button("Code", id="add-code-cell")
+        yield Button("Markdown", id="add-markdown-cell")
+        yield Button("Run All", id="run-all")
+        yield Button("Restart", id="restart")
+
 
 class DirectorySideBar(Container):
     def compose(self) -> ComposeResult:
@@ -33,6 +35,7 @@ class NotebookApp(App):
     def __init__(self) -> None:
         super().__init__()
         self.theme = "textual-dark"
+        self.last_focused = None
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -40,19 +43,43 @@ class NotebookApp(App):
         # yield DirectoryTree(".")
         # yield DirectorySideBar()
         yield ButtonRow()
-
-        yield MarkdownCell()
-        yield CodeCell()
-            
+        yield VerticalScroll(id="cell-container")
         yield Footer()
 
-    def on_mount(self) -> None:
-        self.set_focus(None)
+    def on_descendant_focus(self, event: DescendantFocus) -> None:
+        # Ignore buttons
+        if isinstance(event.widget, CodeArea):
+            self.last_focused = event.widget.parent.parent
+        elif isinstance(event.widget, FocusMarkdown):
+            self.last_focused = event.widget.parent.parent
+        elif not isinstance(event.widget, Button):
+            self.last_focused = None
+
+    def add_cell(self, cell_type: str, position: str = "after") -> None:
+        """
+        Position is after or before. 
+        """
+        kwargs = {position:self.last_focused}
+        container = self.query_one("#cell-container", VerticalScroll)
+        container.mount(cell_type(), **kwargs)
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        match event.button.id:
+            case "add-code-cell":
+                self.add_cell(CodeCell)
+            case "add-markdown-cell":
+                self.add_cell(MarkdownCell)
 
     def on_key(self, event: Key) -> None:
-        pass
-        # match event.key:
-        #     case "escape": self.set_focus(None)
+        match event.key:
+            case "escape": 
+                self.set_focus(None)
+                self.last_focused= None
+            case "a":
+                self.add_cell(CodeCell, "after")
+            case "b":
+                self.add_cell(CodeCell, "before")
+
 
 if __name__ == "__main__":
     app = NotebookApp()

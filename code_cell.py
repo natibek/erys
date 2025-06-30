@@ -40,18 +40,18 @@ class OutputCell(ExpandingTextArea):
 
 class CodeCell(HorizontalGroup):
     def __init__(
-            self, 
-            source: str = "",
-            output: str =  "",
-            metadata: dict[str, Any] = {},
-            exec_count: int | None = None,
-            cell_id: str | None = None,
-        ) -> None:
+        self, 
+        source: str = "",
+        output: str =  "",
+        metadata: dict[str, Any] = {},
+        exec_count: int | None = None,
+        cell_id: str | None = None,
+    ) -> None:
         super().__init__()
         self.source = source
         self.output = output
         self.metadata = metadata
-        self.id = cell_id or generate_id()
+        self.cell_id = cell_id or generate_id()
         self.exec_count = exec_count
 
     def compose(self) -> ComposeResult:
