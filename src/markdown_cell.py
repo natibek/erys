@@ -5,9 +5,10 @@ from widgets import ExpandingTextArea
 from textual.containers import HorizontalGroup
 from typing import Any
 from time import time
-from utils import generate_id
+from utils import generate_id, DOUBLE_CLICK_INTERVAL
 
 PLACEHOLDER = "*Empty markdown cell, double-click or press enter to edit.*"
+
 class FocusMarkdown(Markdown):
     can_focus = True
 
@@ -19,10 +20,14 @@ class FocusMarkdown(Markdown):
         match event.key:
             case "escape": 
                 pass
-        
+
+    def _on_focus(self):
+        self.styles.border = "solid", "lightblue"
+
+    def _on_blur(self):
+        self.styles.border = None
 
 class MarkdownCell(HorizontalGroup):
-    double_click_interval = 0.3  # seconds
     _last_click_time: float = 0.0
 
     def __init__(
@@ -36,6 +41,7 @@ class MarkdownCell(HorizontalGroup):
         self.metadata = metadata
         self.cell_id = cell_id or generate_id()
 
+
     def compose(self) -> ComposeResult:
         with ContentSwitcher(initial="markdown", id="text-cell"):
             yield ExpandingTextArea(self.source, id="raw-text")
@@ -44,15 +50,19 @@ class MarkdownCell(HorizontalGroup):
     def on_key(self, event: Key) -> None:
         switcher = self.query_one("#text-cell", ContentSwitcher)
         if switcher.current == "raw-text" and event.key in {"ctrl+e", "escape"}:
-            self.source= self.query_one("#raw-text", TextArea).text
-            self.query_one("#markdown", Markdown).update(self.source)
+            event.stop()
             switcher.current = "markdown"
+
+            self.source= self.query_one("#raw-text", TextArea).text
+            markdown = self.query_one("#markdown", Markdown)
+            markdown.update(self.source)
+            markdown.focus()
         elif event.key == "enter" and switcher.current == "markdown":
             switcher.current = "raw-text"
 
     def on_mouse_down(self, event: MouseDown) -> None:
         now = time()
-        if now - self._last_click_time <= self.double_click_interval:
+        if now - self._last_click_time <=  DOUBLE_CLICK_INTERVAL:
             self.on_double_click(event)
         self._last_click_time = now
 

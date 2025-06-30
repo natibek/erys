@@ -5,11 +5,12 @@ from widgets import ExpandingTextArea, MIN_HEIGHT
 from textual.widgets import Button, Static, TextArea
 from typing import Any
 from utils import generate_id
-from textual.events import Key
+from textual.events import Key, Focus, Blur
 
 class CodeArea(TextArea):
     offset_val: int = reactive(1)
     closing_map = {"{":"}", "(":")","[":"]","'":"'",'"':'"'}
+
     def on_key(self, event: Key) -> None:
         if event.character in self.closing_map:
             self.insert(f"{event.character}{self.closing_map[event.character]}")
@@ -19,6 +20,7 @@ class CodeArea(TextArea):
 
         match event.key:
             case "escape":
+                self.parent.focus()
                 event.stop()
             case "enter":
                 cur_height = self.styles.height.cells
@@ -46,6 +48,8 @@ class OutputCell(ExpandingTextArea):
         self.disabled = True
 
 class CodeCell(HorizontalGroup):
+    can_focus = True
+
     def __init__(
         self, 
         source: str = "",
@@ -61,9 +65,14 @@ class CodeCell(HorizontalGroup):
         self.cell_id = cell_id or generate_id()
         self.exec_count = exec_count
 
+    def _on_focus(self):
+        self.styles.border = "solid", "lightblue"
+
+    def _on_blur(self):
+        self.styles.border = None
+
     def compose(self) -> ComposeResult:
-        with HorizontalGroup():
-            with VerticalGroup(id="code-sidebar"):
-                yield Button(">", id="run-button")
-                yield Static(f"[{self.exec_count or ""}]", id="exec-count")
-            yield CodeArea.code_editor(self.source, language="python", id="code-editor")
+        with VerticalGroup(id="code-sidebar"):
+            yield Button(">", id="run-button")
+            yield Static(f"[{self.exec_count or ""}]", id="exec-count")
+        yield CodeArea.code_editor(self.source, language="python", id="code-editor")

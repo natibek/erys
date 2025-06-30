@@ -1,13 +1,15 @@
-from textual.reactive import var
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, Button, DirectoryTree, Collapsible, Static, Markdown
 from textual.widget import Widget
 from textual.containers import HorizontalGroup, VerticalScroll, Container, Vertical
-from textual.events import Key, Focus, DescendantFocus
+from textual.events import Key, DescendantFocus
 from notebook import Notebook
+
+from time import time
 
 from markdown_cell import MarkdownCell, FocusMarkdown
 from code_cell import CodeCell, CodeArea
+from utils import DOUBLE_CLICK_INTERVAL
 
 class ButtonRow(HorizontalGroup):
     def compose(self) -> ComposeResult:
@@ -28,6 +30,7 @@ class DirectorySideBar(Container):
 class NotebookApp(App):
     """A Textual app to manage stopwatches."""
 
+    _last_click_time: float = 0.0
     CSS_PATH = "styles.tcss"
     # BINDINGS = [
     #     ("d", "toggle_dark", "Toggle dark mode"),
@@ -48,8 +51,10 @@ class NotebookApp(App):
 
     def on_descendant_focus(self, event: DescendantFocus) -> None:
         # Ignore buttons
-        if isinstance(event.widget, CodeArea):
-            self.last_focused = event.widget.parent.parent
+        if isinstance(event.widget, CodeCell) or isinstance(event.widget, MarkdownCell):
+            self.last_focused = event.widget
+        elif isinstance(event.widget, CodeArea):
+            self.last_focused = event.widget.parent
         elif isinstance(event.widget, FocusMarkdown):
             self.last_focused = event.widget.parent.parent
         elif not isinstance(event.widget, Button):
@@ -79,6 +84,13 @@ class NotebookApp(App):
                 self.add_cell(CodeCell, "after")
             case "b":
                 self.add_cell(CodeCell, "before")
+            case "d":
+                now = time()
+                if now - self._last_click_time <=  DOUBLE_CLICK_INTERVAL:
+                    if self.last_focused: 
+                        self.last_focused.remove()
+                        self.last_focused = None
+                self._last_click_time = now
 
 
 if __name__ == "__main__":
