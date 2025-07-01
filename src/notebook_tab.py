@@ -12,12 +12,14 @@ from markdown_cell import MarkdownCell, FocusMarkdown
 from code_cell import CodeCell, CodeArea
 from utils import DOUBLE_CLICK_INTERVAL
 
+
 class ButtonRow(HorizontalGroup):
     def compose(self) -> ComposeResult:
         yield Button("➕ Code", id="add-code-cell")
         yield Button("➕ Markdown", id="add-markdown-cell")
         yield Button("▶ Run All", id="run-all")
         yield Button("🔁 Restart", id="restart")
+
 
 class NotebookTab(Container):
     """A Textual app to manage stopwatches."""
@@ -30,6 +32,7 @@ class NotebookTab(Container):
         ("b", "add_before", "Add cell before"),
         ("dd", "delete", "Delete cell"),
     ]
+
     def __init__(self, path: str, id: str) -> None:
         super().__init__(id=id)
 
@@ -58,8 +61,6 @@ class NotebookTab(Container):
                     self.add_cell(CodeCell, "after", **cell_kwargs)
                 elif cell["cell_type"] == "markdown":
                     self.add_cell(MarkdownCell, "after", **cell_kwargs)
-                
-
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -80,9 +81,9 @@ class NotebookTab(Container):
 
     def add_cell(self, cell_type: str, position: str = "after", **cell_kwargs) -> None:
         """
-        Position is after or before. 
+        Position is after or before.
         """
-        kwargs = {position:self.last_focused}
+        kwargs = {position: self.last_focused}
         container = self.query_one("#cell-container", VerticalScroll)
         widget = cell_type(**cell_kwargs)
         container.mount(widget, **kwargs)
@@ -102,12 +103,12 @@ class NotebookTab(Container):
 
     def on_key(self, event: Key) -> None:
         match event.key:
-            case "escape": 
+            case "escape":
                 self.last_focused = None
             case "d":
                 now = time()
-                if now - self._last_click_time <=  DOUBLE_CLICK_INTERVAL:
-                    if self.last_focused: 
+                if now - self._last_click_time <= DOUBLE_CLICK_INTERVAL:
+                    if self.last_focused:
                         self.last_focused.remove()
                         self.last_focused = None
                 self._last_click_time = now

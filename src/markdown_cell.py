@@ -8,6 +8,7 @@ from utils import generate_id, DOUBLE_CLICK_INTERVAL
 
 PLACEHOLDER = "*Empty markdown cell, double-click or press enter to edit.*"
 
+
 class FocusMarkdown(Markdown):
     can_focus = True
 
@@ -17,7 +18,7 @@ class FocusMarkdown(Markdown):
 
     def on_key(self, event: Key) -> None:
         match event.key:
-            case "escape": 
+            case "escape":
                 pass
 
     def _on_focus(self):
@@ -26,11 +27,12 @@ class FocusMarkdown(Markdown):
     def _on_blur(self):
         self.styles.border = None
 
+
 class MarkdownCell(HorizontalGroup):
     _last_click_time: float = 0.0
 
     def __init__(
-        self, 
+        self,
         source: str = "",
         metadata: dict[str, Any] = {},
         cell_id: str | None = None,
@@ -39,7 +41,6 @@ class MarkdownCell(HorizontalGroup):
         self.source = source
         self.metadata = metadata
         self.cell_id = cell_id or generate_id()
-
 
     def compose(self) -> ComposeResult:
         with ContentSwitcher(initial="markdown", id="text-cell"):
@@ -52,7 +53,7 @@ class MarkdownCell(HorizontalGroup):
             event.stop()
             switcher.current = "markdown"
 
-            self.source= self.query_one("#raw-text", TextArea).text
+            self.source = self.query_one("#raw-text", TextArea).text
             markdown = self.query_one("#markdown", Markdown)
             markdown.update(self.source)
             markdown.focus()
@@ -61,11 +62,11 @@ class MarkdownCell(HorizontalGroup):
 
     def on_mouse_down(self, event: MouseDown) -> None:
         now = time()
-        if now - self._last_click_time <=  DOUBLE_CLICK_INTERVAL:
+        if now - self._last_click_time <= DOUBLE_CLICK_INTERVAL:
             self.on_double_click(event)
         self._last_click_time = now
 
-    def on_double_click(self, event: MouseDown) -> None: 
+    def on_double_click(self, event: MouseDown) -> None:
         switcher = self.query_one("#text-cell", ContentSwitcher)
         if switcher.current == "markdown":
             switcher.current = "raw-text"

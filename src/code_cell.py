@@ -6,6 +6,7 @@ from typing import Any
 from utils import generate_id
 from textual.events import Key
 
+
 class RunLabel(Label):
     can_focus = True
 
@@ -15,13 +16,14 @@ class RunLabel(Label):
         code_cell.source = source
 
         notebook = code_cell.parent.parent
-        notebook.cur_exec_count += 1 
+        notebook.cur_exec_count += 1
         code_cell.exec_count = notebook.cur_exec_count
         # self.parent.parent.parent.parent.query_one("#output", Markdown).update(f"clicked {self.count} {str(self.parent.parent)} {source}")
 
+
 class CodeArea(TextArea):
     offset_val: int = reactive(0)
-    closing_map = {"{":"}", "(":")","[":"]","'":"'",'"':'"'}
+    closing_map = {"{": "}", "(": ")", "[": "]", "'": "'", '"': '"'}
 
     def on_resize(self) -> None:
         # TODO: move the exec_count with resize
@@ -59,9 +61,11 @@ class CodeArea(TextArea):
             #             self.offset_val = 0
             #             exec_count.styles.margin = (0, 0, 0, 1)
 
+
 class OutputCell(TextArea):
     def on_mount(self) -> None:
         self.disabled = True
+
 
 class CodeCell(HorizontalGroup):
     can_focus = True
@@ -70,9 +74,9 @@ class CodeCell(HorizontalGroup):
     exec_count: int | None = reactive(None)
 
     def __init__(
-        self, 
+        self,
         source: str = "",
-        output: str =  "",
+        output: str = "",
         exec_count: int | None = None,
         metadata: dict[str, Any] = {},
         cell_id: str | None = None,
@@ -93,14 +97,14 @@ class CodeCell(HorizontalGroup):
         self.styles.border = None
 
     def on_mount(self):
-        self.exec_count = self.exec_count 
+        self.exec_count = self.exec_count
 
     def watch_exec_count(self, old: int | None, new: int | None) -> None:
         if self.parent:
-            self.query_one("#exec-count", Static).update(f"[{new or " "}]")
+            self.query_one("#exec-count", Static).update(f"[{new or ' '}]")
 
     def compose(self) -> ComposeResult:
         with VerticalGroup(id="code-sidebar"):
             yield RunLabel("▶", id="run-button")
-            yield Static(f"[{self.exec_count or " "}]", id="exec-count")
+            yield Static(f"[{self.exec_count or ' '}]", id="exec-count")
         yield CodeArea.code_editor(self.source, language="python", id="code-editor")
