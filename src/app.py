@@ -3,36 +3,38 @@ from textual.widgets import (
     Footer,
     Header,
     DirectoryTree,
-    Collapsible,
+    Tab,
     Tabs,
     ContentSwitcher,
     Label,
 )
-from textual.containers import Container, Vertical
+from pathlib import Path
+import os.path
+
+from textual.reactive import reactive
+from textual.containers import Horizontal, Vertical
 from notebook import Notebook
 from textual.events import Key
 import sys
 
-NAMES = [
-    "Paul Atreidies",
-    "Duke Leto Atreides",
-    "Lady Jessica",
-    "Gurney Halleck",
-    "Baron Vladimir Harkonnen",
-    "Glossu Rabban",
-    "Chani",
-    "Silgar",
-]
+class Directory(DirectoryTree):
+    BINDINGS = [
+        ("backspace", "back_dir", "Go back up directory"),
+        ("full_stop", "enter_dir", "Go into directory"),
+    ]
+    selected_dir: str = ""
+    selected_file: str = ""
 
+    def action_back_dir(self) -> None:
+        parent = Path(self.path).resolve().parent
+        self.path = parent
 
-class DirectorySideBar(Container):
-    def compose(self) -> ComposeResult:
-        # with Collapsible(id="tree-panel"):
-        # yield DirectoryTree(".", id="file-tree")
-        with Vertical(id="tree-sidebar"):
-            with Collapsible(id="tree-panel"):
-                yield DirectoryTree(".", id="file-tree")
+    def action_enter_dir(self) -> None:
+        if self.selected_dir:
+            self.path = Path(self.selected_dir).resolve()
 
+    def on_directory_tree_directory_selected(self, event: DirectoryTree.DirectorySelected) -> None:
+        self.selected_dir = event.path
 
 class TerminalNotebook(App):
     """A Textual app to manage stopwatches."""
@@ -45,27 +47,30 @@ class TerminalNotebook(App):
         ("ctrl+s", "save", "Save"),
         ("ctrl+S", "save_as", "Save As"),
         ("ctrl+k", "close", "Close Notebook"),
+        ("d", "toggle_directory_tree", "Toggle Directory Tree")
     ]
-
+    tab_id = reactive("")
     def __init__(self, paths: list[str]) -> None:
         super().__init__()
         self.theme = "dracula"
-        self.paths = paths
+        self.paths = [os.path.relpath(path, Path.cwd()) for path in paths]
         self.cur_tab = len(paths)
         self.tab_to_nb_id_map: dict[str, int] = {}
 
+    
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
-        # yield DirectorySideBar()
 
-        yield Header(show_clock=True)
+        yield Header(show_clock=True, time_format="%I:%M:%S %p")
 
-        with Vertical():
-            yield Tabs(*[path for path in self.paths])
-            with ContentSwitcher(id="tab-content"):
-                for idx, path in enumerate(self.paths):
-                    self.tab_to_nb_id_map[path] = f"tab{idx}"
-                    yield Notebook(path, f"tab{idx}")
+        with Horizontal():
+            yield Directory(Path.cwd(), id="file-tree")
+            with Vertical():
+                yield Tabs(*[Tab(path, id=f"tab{idx}") for idx,path in enumerate(self.paths)])
+                with ContentSwitcher(id="tab-content"):
+                    for idx, path in enumerate(self.paths):
+                        self.tab_to_nb_id_map[path] = f"tab{idx}"
+                        yield Notebook(path, f"tab{idx}")
 
         yield Footer()
 
@@ -73,25 +78,50 @@ class TerminalNotebook(App):
         """Handle TabActivated message sent by Tabs."""
         switcher = self.query_one("#tab-content", ContentSwitcher)
         if event.tab is None:
-            # When the tabs are cleared, event.tab will be None
             pass
-        elif event.tab.label in self.tab_to_nb_id_map:
-            switcher.current = f"{self.tab_to_nb_id_map[event.tab.label]}"
         else:
-            tab_id = event.tab.label
-            new_notebook = Notebook("new_empty_termimal_notebook", f"{tab_id}")
-            switcher.mount(new_notebook)
-            switcher.current = f"{tab_id}"
-            self.tab_to_nb_id_map[f"{tab_id}"] = tab_id
+            notebook_id = self.tab_to_nb_id_map[str(event.tab.label)]
+            switcher.current = f"{notebook_id}"
 
     def on_mount(self) -> None:
         """Focus the tabs when the app starts."""
         self.query_one(Tabs).focus()
+        self.query_one(DirectoryTree).display = False
+
+    def action_toggle_directory_tree(self) -> None:
+        dir = self.query_one(DirectoryTree)
+        dir.display = not dir.display
 
     def action_add(self) -> None:
         tabs = self.query_one(Tabs)
-        tabs.add_tab(f"tab{self.cur_tab}")
+        tab_id = f"tab{self.cur_tab}"
+        tabs.add_tab(Tab(tab_id, id=tab_id))
+        self.tab_to_nb_id_map[tab_id] = tab_id
+
+        new_notebook = Notebook("new_empty_termimal_notebook", tab_id)
+        switcher = self.query_one("#tab-content", ContentSwitcher)
+        switcher.mount(new_notebook)
+
+        tabs.active = tab_id
         self.cur_tab += 1
+
+    def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
+        tabs = self.query_one(Tabs)
+        path = os.path.relpath(event.path, Path.cwd())
+        if path in self.tab_to_nb_id_map:
+            tabs.active = self.tab_to_nb_id_map[path]
+            return
+
+        tab_id = f"tab{self.cur_tab}"
+        tabs.add_tab(Tab(path, id=tab_id))
+        self.tab_to_nb_id_map[path] = tab_id
+
+        new_notebook = Notebook(path, tab_id)
+        switcher = self.query_one("#tab-content", ContentSwitcher)
+        switcher.mount(new_notebook)
+
+        self.cur_tab += 1 
+        tabs.active = tab_id
 
     def action_close(self) -> None:
         """Remove active tab."""
