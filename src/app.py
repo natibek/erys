@@ -20,21 +20,15 @@ import sys
 class Directory(DirectoryTree):
     BINDINGS = [
         ("backspace", "back_dir", "Go back up directory"),
-        ("full_stop", "enter_dir", "Go into directory"),
     ]
-    selected_dir: str = ""
-    selected_file: str = ""
+    selected_dir: str | None = None
 
     def action_back_dir(self) -> None:
         parent = Path(self.path).resolve().parent
         self.path = parent
 
-    def action_enter_dir(self) -> None:
-        if self.selected_dir:
-            self.path = Path(self.selected_dir).resolve()
-
     def on_directory_tree_directory_selected(self, event: DirectoryTree.DirectorySelected) -> None:
-        self.selected_dir = event.path
+        self.path = Path(event.path).resolve()
 
 class TerminalNotebook(App):
     """A Textual app to manage stopwatches."""
@@ -91,6 +85,8 @@ class TerminalNotebook(App):
     def action_toggle_directory_tree(self) -> None:
         dir = self.query_one(DirectoryTree)
         dir.display = not dir.display
+        if dir.display: self.set_focus(dir)
+        else: self.set_focus(None)
 
     def action_add(self) -> None:
         tabs = self.query_one(Tabs)
