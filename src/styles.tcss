@@ -1,13 +1,10 @@
 Tabs {
     dock: top;
 }
-#tree-sidebar {
+ DirectoryTree {
     dock: left;
-    width: 30%;
-}
-
-Collapsible {
-    height: 1fr;
+    width: 20%;
+    border: lightblue solid;
 }
 
 Markdown, TextArea {
