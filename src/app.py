@@ -2,7 +2,6 @@ from textual.app import App, ComposeResult
 from textual.widgets import (
     Footer,
     Header,
-    Button,
     DirectoryTree,
     Collapsible,
     Tabs,
@@ -10,7 +9,7 @@ from textual.widgets import (
     Label,
 )
 from textual.containers import Container, Vertical
-from notebook_tab import NotebookTab
+from notebook import Notebook
 from textual.events import Key
 import sys
 
@@ -35,21 +34,22 @@ class DirectorySideBar(Container):
                 yield DirectoryTree(".", id="file-tree")
 
 
-class NotebookApp(App):
+class TerminalNotebook(App):
     """A Textual app to manage stopwatches."""
 
-    _last_click_time: float = 0.0
     CSS_PATH = "styles.tcss"
 
     BINDINGS = [
-        ("n", "add", "Add tab"),
-        ("r", "remove", "Remove active tab"),
-        ("c", "clear", "Clear tabs"),
+        ("n", "add", "New Notebook"),
+        ("ctrl+r", "clear", "Clear Tabs"),
+        ("ctrl+s", "save", "Save"),
+        ("ctrl+S", "save_as", "Save As"),
+        ("ctrl+k", "close", "Close Notebook"),
     ]
 
     def __init__(self, paths: list[str]) -> None:
         super().__init__()
-        self.theme = "textual-dark"
+        self.theme = "dracula"
         self.paths = paths
         self.cur_tab = len(paths)
         self.tab_to_nb_id_map: dict[str, int] = {}
@@ -58,15 +58,14 @@ class NotebookApp(App):
         """Create child widgets for the app."""
         # yield DirectorySideBar()
 
-        # yield MENUBAR
-        yield Header()
+        yield Header(show_clock=True)
 
         with Vertical():
             yield Tabs(*[path for path in self.paths])
             with ContentSwitcher(id="tab-content"):
                 for idx, path in enumerate(self.paths):
                     self.tab_to_nb_id_map[path] = f"tab{idx}"
-                    yield NotebookTab(path, f"tab{idx}")
+                    yield Notebook(path, f"tab{idx}")
 
         yield Footer()
 
@@ -80,7 +79,7 @@ class NotebookApp(App):
             switcher.current = f"{self.tab_to_nb_id_map[event.tab.label]}"
         else:
             tab_id = event.tab.label
-            new_notebook = NotebookTab("", f"{tab_id}")
+            new_notebook = Notebook("new_empty_termimal_notebook", f"{tab_id}")
             switcher.mount(new_notebook)
             switcher.current = f"{tab_id}"
             self.tab_to_nb_id_map[f"{tab_id}"] = tab_id
@@ -94,7 +93,7 @@ class NotebookApp(App):
         tabs.add_tab(f"tab{self.cur_tab}")
         self.cur_tab += 1
 
-    def action_remove(self) -> None:
+    def action_close(self) -> None:
         """Remove active tab."""
         tabs = self.query_one(Tabs)
         active_tab = tabs.active_tab
@@ -118,5 +117,5 @@ class NotebookApp(App):
 
 
 if __name__ == "__main__":
-    app = NotebookApp(sys.argv[1:])
+    app = TerminalNotebook(sys.argv[1:])
     app.run()

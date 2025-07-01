@@ -13,13 +13,10 @@ class FocusMarkdown(Markdown):
     can_focus = True
 
     def on_mount(self) -> None:
+        # TODO: FIX PLACEFOLDER
         if self.size == 0:
             self.update(PLACEHOLDER)
 
-    def on_key(self, event: Key) -> None:
-        match event.key:
-            case "escape":
-                pass
 
     def _on_focus(self):
         self.styles.border = "solid", "lightblue"
@@ -49,7 +46,7 @@ class MarkdownCell(HorizontalGroup):
 
     def on_key(self, event: Key) -> None:
         switcher = self.query_one("#text-cell", ContentSwitcher)
-        if switcher.current == "raw-text" and event.key in {"ctrl+e", "escape"}:
+        if switcher.current == "raw-text" and event.key in {"ctrl+r", "escape"}:
             event.stop()
             switcher.current = "markdown"
 
