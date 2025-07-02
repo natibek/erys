@@ -37,10 +37,10 @@ class TerminalNotebook(App):
 
     BINDINGS = [
         ("n", "add", "New Notebook"),
-        ("ctrl+r", "clear", "Clear Tabs"),
         ("ctrl+s", "save", "Save"),
         ("ctrl+S", "save_as", "Save As"),
         ("ctrl+k", "close", "Close Notebook"),
+        ("ctrl+l", "clear", "Clear Tabs"),
         ("d", "toggle_directory_tree", "Toggle Directory Tree")
     ]
     tab_id = reactive("")
@@ -104,6 +104,7 @@ class TerminalNotebook(App):
     def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
         tabs = self.query_one(Tabs)
         path = os.path.relpath(event.path, Path.cwd())
+
         if path in self.tab_to_nb_id_map:
             tabs.active = self.tab_to_nb_id_map[path]
             return
@@ -135,6 +136,7 @@ class TerminalNotebook(App):
         self.query_one(Tabs).clear()
         for child in self.query_one("#tab-content", ContentSwitcher).children:
             child.remove()
+        self.tab_to_nb_id_map = {}
 
     def on_key(self, event: Key) -> None:
         match event.key:

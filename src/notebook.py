@@ -9,15 +9,15 @@ import json
 
 from markdown_cell import MarkdownCell, FocusMarkdown
 from code_cell import CodeCell, CodeArea
+from notebook_kernel import NotebookKernel
 
-from IPython.core.interactiveshell import InteractiveShell
 
 class ButtonRow(HorizontalGroup):
     def compose(self) -> ComposeResult:
         yield Button("➕ Code", id="add-code-cell")
         yield Button("➕ Markdown", id="add-markdown-cell")
         yield Button("▶ Run All", id="run-all")
-        yield Button("🔁 Restart", id="restart")
+        yield Button("🔁 Restart", id="restart-shell")
 
 
 class Notebook(Container):
@@ -36,7 +36,11 @@ class Notebook(Container):
         super().__init__(id=id)
 
         self.path = path
-        self.shell = InteractiveShell.instance()
+        self.notebook_kernel = NotebookKernel()
+
+    def on_unmount(self) -> None:
+        if self.notebook_kernel:
+            self.notebook_kernel.shutdown_kernel()
 
     def watch_valid_notebook(self, is_valid: bool) -> None:
         for node in [ButtonRow, Rule, VerticalScroll]:
@@ -69,7 +73,6 @@ class Notebook(Container):
                 }
                 if cell["cell_type"] == "code":
                     cell_kwargs["exec_count"] = cell["execution_count"]
-                    # TODO: fix the output parsing
                     cell_kwargs["outputs"] = cell["outputs"]
                     self.add_cell(CodeCell, "after", **cell_kwargs)
                 elif cell["cell_type"] == "markdown":
@@ -104,7 +107,7 @@ class Notebook(Container):
         kwargs = {position: self.last_focused}
         container = self.query_one("#cell-container", VerticalScroll)
         if cell_type is CodeCell:
-            cell_kwargs["shell"] = self.shell
+            cell_kwargs["notebook"] = self
         widget = cell_type(**cell_kwargs)
         container.mount(widget, **kwargs)
 
@@ -114,6 +117,13 @@ class Notebook(Container):
                 self.add_cell(CodeCell)
             case "add-markdown-cell":
                 self.add_cell(MarkdownCell)
+            case "restart-shell":
+                self.notebook_kernel.restart_kernel()
+            case "run-all":
+                for child in self.query_one("#cell-container", VerticalScroll).children:
+                    if isinstance(child, CodeCell):
+                        child.run_cell()
+
 
     def action_delete(self) -> None:
         if self.last_focused:

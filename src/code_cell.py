@@ -1,13 +1,15 @@
+from __future__ import annotations
+
 from textual.app import ComposeResult
 from textual.reactive import reactive
 from textual.containers import HorizontalGroup, VerticalGroup
-from textual.widgets import Button, Static, TextArea, Label, Markdown, Log, RichLog
+from textual.widgets import Static, TextArea, Label, Markdown, Log, RichLog, Collapsible
 from typing import Any
 from utils import generate_id
 from textual.events import Key
 from IPython.utils import io
+from notebook_kernel import NotebookKernel
 
-from IPython.core.interactiveshell import InteractiveShell
 import re
 
 class RunLabel(Label):
@@ -15,8 +17,6 @@ class RunLabel(Label):
 
     def on_click(self) -> None:
         code_cell: CodeCell = self.parent.parent
-        if code_cell.shell is None:
-            return
         code_cell.run_cell()
 
 
@@ -58,7 +58,6 @@ class CodeCell(HorizontalGroup):
     BINDINGS = [
         ("r", "run_cell", "Run Cell"),
     ]
-
     def __init__(
         self,
         source: str = "",
@@ -66,7 +65,7 @@ class CodeCell(HorizontalGroup):
         exec_count: int | None = None,
         metadata: dict[str, Any] = {},
         cell_id: str | None = None,
-        shell: InteractiveShell | None = None,
+        notebook: "Notebook" | None = None
     ) -> None:
         super().__init__()
 
@@ -77,7 +76,7 @@ class CodeCell(HorizontalGroup):
 
         self.metadata = metadata
         self.cell_id = cell_id or generate_id()
-        self.shell = shell
+        self.notebook = notebook
 
     def _on_focus(self):
         self.styles.border = "solid", "lightblue"
@@ -99,15 +98,16 @@ class CodeCell(HorizontalGroup):
         for output in outputs:
             match output["output_type"]:
                 case "stream":
-                    text = "".join(output["text"])
+                    text = "".join(output["text"]) if isinstance(output["text"], list) else output["text"]
                     output_widget.mount(OutputCell(text=text))
                 case "error":
                     text = "".join(output["traceback"])
-                    log = RichLog(highlight=True)
-                    log.write(text)
-                    output_widget.mount(log)#OutputCell(text=text))
+                    # log = RichLog(highlight=True)
+                    # log.write(text)
+                    # output_widget.mount(log)#
+                    output_widget.mount(OutputCell(text=text))
                 case "execute_result":
-                    text = "".join(output["data"]["text/plain"])
+                    text = "".join(output["data"]["text/plain"]) if isinstance(output["data"]["text/plain"], list) else output["data"]["text/plain"]
                     output_widget.mount(OutputCell(text=text))
         self.refresh()
 
@@ -115,80 +115,18 @@ class CodeCell(HorizontalGroup):
         self.call_after_refresh(self.run_cell)
     
     def run_cell(self):
+        if not self.notebook.notebook_kernel:
+            # TODO: Show warning message
+            return
+
+        kernel: NotebookKernel = self.notebook.notebook_kernel
+
         source = self.query_one("#code-editor", CodeArea).text
         self.source = source
 
         # capture the stdout and stderr
-        with io.capture_output() as captured:
-            result = self.shell.run_cell(source, store_history=True)
-
-        outputs = []
-
-        stdout_result = captured.stdout
-        if stdout_result:
-            text = [string+"\n" for string in stdout_result.split("\n") if string]
-            if result.result:
-                ipython_output_pattern = re.escape(f"Out[{result.execution_count}]: {result.result}")
-                match = None
-                for m in re.finditer(ipython_output_pattern, text[-1]): match = m
-                if match:
-                    if (start := match.span()[0]) == 0: # the 'Out[d]: result' is the begining of the last line
-                        text.pop()
-                    else:
-                        text[-1] = text[-1][0:start]
-            elif stdout_result[-1] != "\n":
-                text[-1] = text[-1][:-1]
-
-            stdout_output = {
-                "output_type" : "stream",
-                "name" : "stdout",
-                "text" : text,
-            }
-            outputs.append(stdout_output)
-
-        stderr_result = captured.stderr
-        if stderr_result:
-            text = [string+"\n" for string in stderr_result.split("\n") if string]
-            if stderr_result[-1] != "\n":
-                text[-1] = text[-1][:-1]
-
-            stderr_output = {
-                "output_type" : "stream",
-                "name" : "stderr",
-                "text" : text,
-            }
-            outputs.append(stderr_output)
-
-
-        if result.result is not None: 
-            exec_result = {
-                "output_type" : "execute_result",
-                "execution_count": result.execution_count,
-                "data" : {
-                    "text/plain" : [str(result.result)],
-                    # "image/png": ["base64-encoded-png-data"],
-                    # "application/json": {
-                    # # JSON data is included as-is
-                    # "json": "data",
-                    # },
-                },
-                # "metadata" : {
-                #     "image/png": {
-                #     "width": 640,
-                #     "height": 480,
-                #     },
-                # },
-            }    # gives execute_result output
-            outputs.append(exec_result)
-
-        with open("../output", "a") as f:
-            f.write(f"\nexecuting {source}")
-            f.write(f"\n{stdout_result=}")
-            f.write(f"\n{stderr_result=}")
-            f.write(f"\n{result.result=}")
-            f.write(f"\n{outputs=}\n")
-            
-        self.exec_count = result.execution_count
+        outputs, execution_count = kernel.run_code(source)
+        self.exec_count = execution_count
         self.outputs = outputs
         self.call_next(lambda: self.update_outputs(outputs))
 
