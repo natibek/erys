@@ -5,7 +5,7 @@ from textual.reactive import reactive
 from textual.containers import HorizontalGroup, VerticalGroup
 from textual.widgets import Static, TextArea, Label, Markdown, Log, RichLog, Collapsible
 from typing import Any
-from utils import generate_id
+from utils import get_cell_id
 from textual.events import Key
 from notebook_kernel import NotebookKernel
 
@@ -74,7 +74,7 @@ class CodeCell(HorizontalGroup):
         self.notebook = notebook
 
         self._metadata = metadata
-        self._cell_id = cell_id or generate_id()
+        self._cell_id = cell_id or get_cell_id()
 
     @staticmethod
     def from_nb(nb: dict[str, Any], notebook = None) -> "CodeCell":

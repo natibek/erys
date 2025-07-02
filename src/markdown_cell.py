@@ -4,7 +4,7 @@ from textual.events import Key, MouseDown
 from textual.containers import HorizontalGroup
 from typing import Any
 from time import time
-from utils import generate_id, DOUBLE_CLICK_INTERVAL
+from utils import get_cell_id, DOUBLE_CLICK_INTERVAL
 
 PLACEHOLDER = "*Empty markdown cell, double-click or press enter to edit.*"
 
@@ -32,7 +32,7 @@ class MarkdownCell(HorizontalGroup):
         super().__init__()
         self.source = source
         self._metadata = metadata
-        self._cell_id = cell_id or generate_id()
+        self._cell_id = cell_id or get_cell_id()
 
     @staticmethod
     def from_nb(nb: dict[str, Any]) -> "MarkdownCell":
