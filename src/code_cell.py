@@ -7,10 +7,8 @@ from textual.widgets import Static, TextArea, Label, Markdown, Log, RichLog, Col
 from typing import Any
 from utils import generate_id
 from textual.events import Key
-from IPython.utils import io
 from notebook_kernel import NotebookKernel
 
-import re
 
 class RunLabel(Label):
     can_focus = True
@@ -73,10 +71,56 @@ class CodeCell(HorizontalGroup):
 
         self.outputs:list[dict[str, Any]] = outputs
         self.exec_count = exec_count
-
-        self.metadata = metadata
-        self.cell_id = cell_id or generate_id()
         self.notebook = notebook
+
+        self._metadata = metadata
+        self._cell_id = cell_id or generate_id()
+
+    @staticmethod
+    def from_nb(nb: dict[str, Any], notebook = None) -> "CodeCell":
+        assert nb
+        for key in ["cell_type", "id", "execution_count", "metadata", "source", "outputs"]:
+            assert key in nb
+        assert nb["cell_type"] == "code"
+        
+        source = nb["source"]
+        if isinstance(source, list): source = "".join(source)
+
+        return CodeCell(
+            source=source,
+            outputs=nb["outputs"],
+            exec_count=nb["execution_count"],
+            metadata=nb["metadata"],
+            cell_id=nb["id"],
+            notebook=notebook
+        )
+
+    def to_nb(self):
+        """
+        Format for code cell
+            {
+            "cell_type" : "code",
+            "execution_count": 1, # integer or null
+            "metadata" : {
+                "collapsed" : True, # whether the output of the cell is collapsed
+                "autoscroll": False, # any of true, false or "auto"
+            },
+            "source" : ["some code"],
+            "outputs": [{
+                # list of output dicts (described below)
+                "output_type": "stream",
+                ...
+            }],
+            }
+        """
+        return {
+            "cell_type": "code",
+            "execution_count": self.exec_count,
+            "id": self._cell_id,
+            "metadata": self._metadata,
+            "outputs": self.outputs,
+            "source": self.source,
+        }
 
     def _on_focus(self):
         self.styles.border = "solid", "lightblue"
@@ -88,27 +132,34 @@ class CodeCell(HorizontalGroup):
         self.call_after_refresh(lambda : self.update_outputs(self.outputs)) 
 
     def watch_exec_count(self, new: int | None) -> None:
-        self.call_after_refresh(lambda : self.query_one("#exec-count", Static).update(f"[{new or ' '}]"))
+        self.call_after_refresh(lambda : self.exec_count_display.update(f"[{new or ' '}]"))
+
+    async def open(self):
+        self.call_after_refresh(self.code_area.focus)
 
     async def update_outputs(self, outputs: list[dict[str, Any]]) -> None:
-        with open("../output", "a") as f:
-            f.write(f"\nchanged outputs {outputs}")
-        output_widget = self.query_one("#outputs", VerticalGroup)
-        await output_widget.remove_children()
+        self.outputs_group = self.query_one("#outputs", VerticalGroup)
+        await self.outputs_group.remove_children()
         for output in outputs:
             match output["output_type"]:
                 case "stream":
-                    text = "".join(output["text"]) if isinstance(output["text"], list) else output["text"]
-                    output_widget.mount(OutputCell(text=text))
+                    if isinstance(output["text"], list):
+                        text = "".join(output["text"]) 
+                    else:
+                        text = output["text"]
+                    self.outputs_group.mount(OutputCell(text=text))
                 case "error":
                     text = "".join(output["traceback"])
                     # log = RichLog(highlight=True)
                     # log.write(text)
-                    # output_widget.mount(log)#
-                    output_widget.mount(OutputCell(text=text))
+                    # self.outputs_group.mount(log)#
+                    self.outputs_group.mount(OutputCell(text=text))
                 case "execute_result":
-                    text = "".join(output["data"]["text/plain"]) if isinstance(output["data"]["text/plain"], list) else output["data"]["text/plain"]
-                    output_widget.mount(OutputCell(text=text))
+                    if isinstance(output["data"]["text/plain"], list):
+                        text = "".join(output["data"]["text/plain"])
+                    else: 
+                        text = output["data"]["text/plain"]
+                    self.outputs_group.mount(OutputCell(text=text))
         self.refresh()
 
     def action_run_cell(self) -> None:
@@ -121,11 +172,9 @@ class CodeCell(HorizontalGroup):
 
         kernel: NotebookKernel = self.notebook.notebook_kernel
 
-        source = self.query_one("#code-editor", CodeArea).text
-        self.source = source
-
+        self.source = self.code_area.text
         # capture the stdout and stderr
-        outputs, execution_count = kernel.run_code(source)
+        outputs, execution_count = kernel.run_code(self.source)
         self.exec_count = execution_count
         self.outputs = outputs
         self.call_next(lambda: self.update_outputs(outputs))
@@ -133,7 +182,11 @@ class CodeCell(HorizontalGroup):
     def compose(self) -> ComposeResult:
         with VerticalGroup(id="code-sidebar"):
             yield RunLabel("▶", id="run-button")
-            yield Static(f"[{self.exec_count or ' '}]", id="exec-count")
+            self.exec_count_display = Static(f"[{self.exec_count or ' '}]", id="exec-count")
+            yield self.exec_count_display
         with VerticalGroup():
-            yield CodeArea.code_editor(self.source, language="python", id="code-editor")
-            yield VerticalGroup(id="outputs")
+            self.code_area = CodeArea.code_editor(self.source, language="python", id="code-editor")
+            self.outputs_group = VerticalGroup(id="outputs")
+
+            yield self.code_area
+            yield self.outputs_group

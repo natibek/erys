@@ -31,26 +31,67 @@ class MarkdownCell(HorizontalGroup):
     ) -> None:
         super().__init__()
         self.source = source
-        self.metadata = metadata
-        self.cell_id = cell_id or generate_id()
+        self._metadata = metadata
+        self._cell_id = cell_id or generate_id()
+
+    @staticmethod
+    def from_nb(nb: dict[str, Any]) -> "MarkdownCell":
+        assert nb
+        for key in ["cell_type", "id", "metadata", "source"]:
+            assert key in nb
+        assert nb["cell_type"] == "markdown"
+
+        source = nb["source"]
+        if isinstance(source, list): source = "".join(source)
+
+        return MarkdownCell(
+            source=source,
+            metadata=nb["metadata"],
+            cell_id=nb["id"],
+        )
+
+
+    def to_nb(self) -> dict[str, Any]:
+        """
+            Format for Markdown cell
+            {
+                "cell_type" : "markdown",
+                "metadata" : {},
+                "source" : ["some *markdown*"],
+            }
+        """
+        return {
+            "cell_type": "markdown",
+            "metadata": self._metadata,
+            "source": self.text_area.text,
+        }
 
     def compose(self) -> ComposeResult:
-        with ContentSwitcher(initial="markdown", id="text-cell"):
-            yield TextArea(self.source, id="raw-text")
-            yield FocusMarkdown(self.source, id="markdown")
+        self.switcher = ContentSwitcher(initial="markdown", id="text-cell")
+        with self.switcher:
+            self.text_area = TextArea(self.source, id="raw-text")
+            self.markdown = FocusMarkdown(self.source, id="markdown")
+            yield self.text_area
+            yield self.markdown
+
+    def show_markdown(self):
+        self.switcher.current = "markdown"
+
+    async def open(self):
+        if self.switcher.current == "markdown":
+            self.switcher.current = "raw-text"
+        self.call_after_refresh(self.text_area.focus)
 
     def on_key(self, event: Key) -> None:
-        switcher = self.query_one("#text-cell", ContentSwitcher)
-        if switcher.current == "raw-text" and event.key in {"ctrl+r", "escape"}:
+        if self.switcher.current == "raw-text" and event.key in {"ctrl+r", "escape"}:
             event.stop()
-            switcher.current = "markdown"
+            self.switcher.current = "markdown"
 
-            self.source = self.query_one("#raw-text", TextArea).text
-            markdown = self.query_one("#markdown", Markdown)
-            markdown.update(self.source)
-            markdown.focus()
-        elif event.key == "enter" and switcher.current == "markdown":
-            switcher.current = "raw-text"
+            self.source = self.text_area.text
+            self.markdown.update(self.source)
+            self.markdown.focus()
+        elif event.key == "enter" and self.switcher.current == "markdown":
+            self.switcher.current = "raw-text"
 
     def on_mouse_down(self, event: MouseDown) -> None:
         now = time()
@@ -59,6 +100,5 @@ class MarkdownCell(HorizontalGroup):
         self._last_click_time = now
 
     def on_double_click(self, event: MouseDown) -> None:
-        switcher = self.query_one("#text-cell", ContentSwitcher)
-        if switcher.current == "markdown":
-            switcher.current = "raw-text"
+        if self.switcher.current == "markdown":
+            self.switcher.current = "raw-text"
