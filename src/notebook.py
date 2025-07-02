@@ -10,6 +10,7 @@ import json
 from markdown_cell import MarkdownCell, FocusMarkdown
 from code_cell import CodeCell, CodeArea
 
+from IPython.core.interactiveshell import InteractiveShell
 
 class ButtonRow(HorizontalGroup):
     def compose(self) -> ComposeResult:
@@ -25,7 +26,6 @@ class Notebook(Container):
 
     _last_click_time: float = 0.0
     last_focused = None
-    cur_exec_count = 0
     BINDINGS = [
         ("a", "add_after", "Add cell after"),
         ("b", "add_before", "Add cell before"),
@@ -36,6 +36,7 @@ class Notebook(Container):
         super().__init__(id=id)
 
         self.path = path
+        self.shell = InteractiveShell.instance()
 
     def watch_valid_notebook(self, is_valid: bool) -> None:
         for node in [ButtonRow, Rule, VerticalScroll]:
@@ -69,7 +70,7 @@ class Notebook(Container):
                 if cell["cell_type"] == "code":
                     cell_kwargs["exec_count"] = cell["execution_count"]
                     # TODO: fix the output parsing
-                    cell_kwargs["output"] = ""
+                    cell_kwargs["outputs"] = cell["outputs"]
                     self.add_cell(CodeCell, "after", **cell_kwargs)
                 elif cell["cell_type"] == "markdown":
                     self.add_cell(MarkdownCell, "after", **cell_kwargs)
@@ -96,12 +97,14 @@ class Notebook(Container):
         elif not isinstance(event.widget, Button):
             self.last_focused = None
 
-    def add_cell(self, cell_type: str, position: str = "after", **cell_kwargs) -> None:
+    def add_cell(self, cell_type, position: str = "after", **cell_kwargs) -> None:
         """
         Position is after or before.
         """
         kwargs = {position: self.last_focused}
         container = self.query_one("#cell-container", VerticalScroll)
+        if cell_type is CodeCell:
+            cell_kwargs["shell"] = self.shell
         widget = cell_type(**cell_kwargs)
         container.mount(widget, **kwargs)
 

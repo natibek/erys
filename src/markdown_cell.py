@@ -11,12 +11,7 @@ PLACEHOLDER = "*Empty markdown cell, double-click or press enter to edit.*"
 
 class FocusMarkdown(Markdown):
     can_focus = True
-
-    def on_mount(self) -> None:
-        # TODO: FIX PLACEFOLDER
-        if self.size == 0:
-            self.update(PLACEHOLDER)
-
+    # TODO: FIX PLACEFOLDER
 
     def _on_focus(self):
         self.styles.border = "solid", "lightblue"

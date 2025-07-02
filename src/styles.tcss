@@ -23,6 +23,14 @@ CodeCell{
     padding-right: 0;
 }
 
+OutputCell {
+    padding-left: 1;
+    padding-right: 1;
+    min-height: 1;
+    max-height: 30;
+    height: auto;
+}
+
 #code-sidebar {
     width: 5;
     padding: 0;
