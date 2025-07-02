@@ -7,8 +7,41 @@ class NotebookKernel:
         self.kernel_manager: KernelManager = KernelManager()
         self.kernel_manager.start_kernel()
 
+        self.kernel_manager.kernel_name
         self.kernel_client: BlockingKernelClient = self.kernel_manager.client()
         self.kernel_client.start_channels()
+
+    def get_kernel_info(self):
+        return {
+            "name": self.kernel_manager.kernel_name
+        }
+
+    def get_kernel_spec(self):
+        try:
+            spec = self.kernel_manager.kernel_spec
+            return {
+                "display_name": spec.display_name,
+                "language": spec.lanugage,
+                "name": spec.name,
+            }
+        except:
+            return {
+                "display_name": "",
+                "language": "",
+                "name": "",
+            }
+
+    
+    def get_language_info(self):
+        language_info = {}
+        try:
+            self.kernel_client.kernel_info()
+            msg = self.kernel_client.get_shell_msg(timeout=5)
+            
+            if msg['header']['msg_type'] == 'kernel_info_reply':
+                language_info = msg["content"].get("language_info", {})
+        finally:
+            return language_info
 
     def run_code(self, code: str) -> list[dict[str, Any]]:
         self.kernel_client.wait_for_ready(timeout=5)

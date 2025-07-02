@@ -37,8 +37,6 @@ class TerminalNotebook(App):
 
     BINDINGS = [
         ("n", "add", "New Notebook"),
-        ("ctrl+s", "save", "Save"),
-        ("ctrl+S", "save_as", "Save As"),
         ("ctrl+k", "close", "Close Notebook"),
         ("ctrl+l", "clear", "Clear Tabs"),
         ("d", "toggle_directory_tree", "Toggle Directory Tree")
@@ -58,10 +56,14 @@ class TerminalNotebook(App):
         yield Header(show_clock=True, time_format="%I:%M:%S %p")
 
         with Horizontal():
-            yield Directory(Path.cwd(), id="file-tree")
+            self.dir_tree = Directory(Path.cwd(), id="file-tree")
+            yield self.dir_tree
+
             with Vertical():
-                yield Tabs(*[Tab(path, id=f"tab{idx}") for idx,path in enumerate(self.paths)])
-                with ContentSwitcher(id="tab-content"):
+                self.tabs = Tabs(*[Tab(path, id=f"tab{idx}") for idx,path in enumerate(self.paths)])
+                yield self.tabs
+                self.switcher = ContentSwitcher(id="tab-content")
+                with self.switcher:
                     for idx, path in enumerate(self.paths):
                         self.tab_to_nb_id_map[path] = f"tab{idx}"
                         yield Notebook(path, f"tab{idx}")
@@ -70,71 +72,66 @@ class TerminalNotebook(App):
 
     def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
         """Handle TabActivated message sent by Tabs."""
-        switcher = self.query_one("#tab-content", ContentSwitcher)
         if event.tab is None:
             pass
         else:
             notebook_id = self.tab_to_nb_id_map[str(event.tab.label)]
-            switcher.current = f"{notebook_id}"
+            self.switcher.current = f"{notebook_id}"
 
     def on_mount(self) -> None:
         """Focus the tabs when the app starts."""
-        self.query_one(Tabs).focus()
-        self.query_one(DirectoryTree).display = False
+        self.tabs.focus()
+        self.dir_tree.display = False
 
     def action_toggle_directory_tree(self) -> None:
-        dir = self.query_one(DirectoryTree)
-        dir.display = not dir.display
-        if dir.display: self.set_focus(dir)
-        else: self.set_focus(None)
+        self.dir_tree.display = not self.dir_tree.display
+        if self.dir_tree.display: 
+            self.set_focus(self.dir_tree)
+        else: 
+            self.set_focus(None)
 
     def action_add(self) -> None:
-        tabs = self.query_one(Tabs)
         tab_id = f"tab{self.cur_tab}"
-        tabs.add_tab(Tab(tab_id, id=tab_id))
+        self.tabs.add_tab(Tab(tab_id, id=tab_id))
         self.tab_to_nb_id_map[tab_id] = tab_id
 
         new_notebook = Notebook("new_empty_termimal_notebook", tab_id)
-        switcher = self.query_one("#tab-content", ContentSwitcher)
-        switcher.mount(new_notebook)
+        self.switcher.mount(new_notebook)
 
-        tabs.active = tab_id
+        self.tabs.active = tab_id
         self.cur_tab += 1
 
     def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
-        tabs = self.query_one(Tabs)
         path = os.path.relpath(event.path, Path.cwd())
 
         if path in self.tab_to_nb_id_map:
-            tabs.active = self.tab_to_nb_id_map[path]
+            self.tabs.active = self.tab_to_nb_id_map[path]
             return
 
         tab_id = f"tab{self.cur_tab}"
-        tabs.add_tab(Tab(path, id=tab_id))
+        self.tabs.add_tab(Tab(path, id=tab_id))
         self.tab_to_nb_id_map[path] = tab_id
 
         new_notebook = Notebook(path, tab_id)
-        switcher = self.query_one("#tab-content", ContentSwitcher)
-        switcher.mount(new_notebook)
+        self.switcher.mount(new_notebook)
 
         self.cur_tab += 1 
-        tabs.active = tab_id
+        self.tabs.active = tab_id
 
     def action_close(self) -> None:
         """Remove active tab."""
-        tabs = self.query_one(Tabs)
-        active_tab = tabs.active_tab
+        active_tab = self.tabs.active_tab
+        # TODO: ask for save
         if active_tab is not None:
-            tabs.remove_tab(active_tab.id)
+            self.tabs.remove_tab(active_tab.id)
             notebook_id = self.tab_to_nb_id_map[active_tab.label]
-            switcher = self.query_one("#tab-content", ContentSwitcher)
-            switcher.remove_children(f"#{notebook_id}")
+            self.switcher.remove_children(f"#{notebook_id}")
             del self.tab_to_nb_id_map[active_tab.label]
 
     def action_clear(self) -> None:
         """Clear the tabs."""
-        self.query_one(Tabs).clear()
-        for child in self.query_one("#tab-content", ContentSwitcher).children:
+        self.tabs.clear()
+        for child in self.switcher.children:
             child.remove()
         self.tab_to_nb_id_map = {}
 
