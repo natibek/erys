@@ -79,7 +79,7 @@ class CodeCell(HorizontalGroup):
     @staticmethod
     def from_nb(nb: dict[str, Any], notebook = None) -> "CodeCell":
         assert nb
-        for key in ["cell_type", "id", "execution_count", "metadata", "source", "outputs"]:
+        for key in ["cell_type", "execution_count", "metadata", "source", "outputs"]:
             assert key in nb
         assert nb["cell_type"] == "code"
         
@@ -91,7 +91,7 @@ class CodeCell(HorizontalGroup):
             outputs=nb["outputs"],
             exec_count=nb["execution_count"],
             metadata=nb["metadata"],
-            cell_id=nb["id"],
+            cell_id=nb.get("id", None),
             notebook=notebook
         )
 
@@ -163,9 +163,9 @@ class CodeCell(HorizontalGroup):
         self.refresh()
 
     def action_run_cell(self) -> None:
-        self.call_after_refresh(self.run_cell)
+        self.run_worker(self.run_cell)
     
-    def run_cell(self):
+    async def run_cell(self):
         if not self.notebook.notebook_kernel:
             # TODO: Show warning message
             return

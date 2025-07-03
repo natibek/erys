@@ -155,12 +155,12 @@ class Notebook(Container):
         await self.cell_container.mount(widget, **kwargs)
         self.call_after_refresh(widget.open)
 
-    def on_button_pressed(self, event: Button.Pressed) -> None:
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
             case "add-code-cell":
-                self.add_cell(CodeCell)
+                await self.add_cell(CodeCell)
             case "add-markdown-cell":
-                self.add_cell(MarkdownCell)
+                await self.add_cell(MarkdownCell)
             case "restart-shell":
                 self.notebook_kernel.restart_kernel()
             case "run-all":

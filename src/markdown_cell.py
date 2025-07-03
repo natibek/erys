@@ -37,7 +37,7 @@ class MarkdownCell(HorizontalGroup):
     @staticmethod
     def from_nb(nb: dict[str, Any]) -> "MarkdownCell":
         assert nb
-        for key in ["cell_type", "id", "metadata", "source"]:
+        for key in ["cell_type", "metadata", "source"]:
             assert key in nb
         assert nb["cell_type"] == "markdown"
 
@@ -47,7 +47,7 @@ class MarkdownCell(HorizontalGroup):
         return MarkdownCell(
             source=source,
             metadata=nb["metadata"],
-            cell_id=nb["id"],
+            cell_id=nb.get("id"),
         )
 
 
@@ -64,6 +64,7 @@ class MarkdownCell(HorizontalGroup):
             "cell_type": "markdown",
             "metadata": self._metadata,
             "source": self.text_area.text,
+            "id": self._cell_id,
         }
 
     def compose(self) -> ComposeResult:
