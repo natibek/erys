@@ -22,6 +22,8 @@ class FocusMarkdown(Markdown):
 
 class MarkdownCell(HorizontalGroup):
     _last_click_time: float = 0.0
+    next = None
+    prev = None
 
     def __init__(
         self,
@@ -43,15 +45,23 @@ class MarkdownCell(HorizontalGroup):
             yield self.markdown
 
     def on_key(self, event: Key) -> None:
-        if self.switcher.current == "raw-text" and event.key in {"ctrl+r", "escape"}:
-            event.stop()
-            self.switcher.current = "markdown"
+        if self.switcher.current == "raw-text":
+            match event.key:
+                case "ctrl+r" | "escape":
+                    event.stop()
+                    self.switcher.current = "markdown"
 
-            self.source = self.text_area.text
-            self.markdown.update(self.source)
-            self.markdown.focus()
-        elif event.key == "enter" and self.switcher.current == "markdown":
-            self.switcher.current = "raw-text"
+                    self.source = self.text_area.text
+                    self.markdown.update(self.source)
+                    self.markdown.focus()
+                # case "up" | "down":
+                #     event.stop()
+
+        elif self.switcher.current == "markdown":
+            match event.key:
+                case "enter":
+                    self.switcher.current = "raw-text"
+
 
     def on_mouse_down(self, event: MouseDown) -> None:
         now = time()
@@ -62,6 +72,12 @@ class MarkdownCell(HorizontalGroup):
     def on_double_click(self, event: MouseDown) -> None:
         if self.switcher.current == "markdown":
             self.switcher.current = "raw-text"
+
+    def focus_widget(self) -> None:
+        if cur := self.switcher.current:
+            self.query_one(f"#{cur}").focus()
+        else:
+            self.query_one(f"#markdown").focus()
 
     @staticmethod
     def from_nb(nb: dict[str, Any]) -> "MarkdownCell":

@@ -113,18 +113,21 @@ class TerminalNotebook(App):
             case "escape":
                 self.set_focus(self.tabs)
             case "enter":
+                if not self.switcher.current:
+                    return
+
                 if isinstance(self.app.focused, Tabs):
                     notebook = self.switcher.query_one(
                         f"#{self.switcher.current}", Notebook
                     )
-                    self.call_after_refresh(notebook.cell_container.focus)
+                    self.call_after_refresh(notebook.focus_notebook)
 
     def action_toggle_directory_tree(self) -> None:
         self.dir_tree.display = not self.dir_tree.display
         if self.dir_tree.display:
             self.set_focus(self.dir_tree)
         else:
-            self.set_focus(None)
+            self.set_focus(self.tabs)
 
     def action_add(self) -> None:
         tab_id = f"tab{self.cur_tab}"

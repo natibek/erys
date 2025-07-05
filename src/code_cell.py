@@ -53,22 +53,25 @@ class CodeCell(HorizontalGroup):
         ("r", "run_cell", "Run Cell"),
     ]
 
+    next = None
+    prev = None
+
     def __init__(
         self,
+        notebook,
         source: str = "",
         outputs: list[dict[str, Any]] = [],
         exec_count: int | None = None,
         metadata: dict[str, Any] = {},
         cell_id: str | None = None,
-        notebook: "Notebook" | None = None,
     ) -> None:
         super().__init__()
+        self.notebook = notebook
 
         self.source = source
 
         self.outputs: list[dict[str, Any]] = outputs
         self.exec_count = exec_count
-        self.notebook = notebook
 
         self._metadata = metadata
         self._cell_id = cell_id or get_cell_id()
@@ -158,6 +161,9 @@ class CodeCell(HorizontalGroup):
             "source": self.source,
         }
 
+    def focus_widget(self):
+        self.focus()
+
     async def open(self):
         self.call_after_refresh(self.code_area.focus)
 
@@ -197,4 +203,4 @@ class CodeCell(HorizontalGroup):
         outputs, execution_count = kernel.run_code(self.source)
         self.exec_count = execution_count
         self.outputs = outputs
-        self.call_next(lambda: self.update_outputs(outputs))
+        self.call_next(self.update_outputs, outputs)

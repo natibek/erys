@@ -26,9 +26,9 @@ class Notebook(Container):
     """A Textual app to manage stopwatches."""
 
     valid_notebook = reactive(True)
-
-    _last_click_time: float = 0.0
     last_focused = None
+    idx = None
+
     SCREENS = {"save_as_screen": SaveAsScreen}
     BINDINGS = [
         ("a", "add_cell_after", "Add cell after"),
@@ -61,8 +61,8 @@ class Notebook(Container):
         )
 
     def on_mount(self):
-        self.load_notebook()
-        self.call_after_refresh(self.cell_container.focus)
+        self.call_after_refresh(self.load_notebook)
+        self.call_after_refresh(self.focus_notebook)
 
     def on_unmount(self) -> None:
         if self.notebook_kernel:
@@ -77,6 +77,22 @@ class Notebook(Container):
             for widgetType in [CodeArea, FocusMarkdown, TextArea]
         ):
             self.last_focused = event.widget.parent.parent
+
+    def on_key(self, event: Key) -> None:
+        match event.key:
+            case "tab" | "shift+tab":
+                event.prevent_default() 
+                event.stop()
+
+        if not isinstance(self.app.focused, TextArea):
+            match event.key:
+                case "up":
+                    if self.last_focused and (prev_cell := self.last_focused.prev):
+                        prev_cell.focus_widget()
+                case "down":
+                    if self.last_focused and (next_cell := self.last_focused.next):
+                        next_cell.focus_widget()
+
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
@@ -114,8 +130,23 @@ class Notebook(Container):
         # TODO: Move to cells
         # TODO: Change the focused cell when one is deleted
         if self.last_focused:
-            self.last_focused.remove()
-            self.last_focused = None
+            self.call_after_refresh(self.last_focused.remove)
+            
+            # update the prev and next pointers 
+            # update the new focused cell
+            last_focused = None
+            if prev := self.last_focused.prev:
+                last_focused = prev
+                prev.next = self.last_focused.next
+
+            if next := self.last_focused.next:
+                last_focused = next
+                next.prev = self.last_focused.prev
+
+            self.last_focused = last_focused
+
+            if self.last_focused:
+                self.last_focused.focus_widget()
 
     def watch_valid_notebook(self, is_valid: bool) -> None:
         for node in [ButtonRow, Rule, VerticalScroll]:
@@ -123,13 +154,13 @@ class Notebook(Container):
 
         self.query_one(Label).display = not is_valid
 
-    def focus(self):
-        if self.last_child:
-            self.call_after_refresh(self.last_child.focus)
+    def focus_notebook(self):
+        if self.last_focused:
+            self.call_after_refresh(self.last_focused.focus_widget)
         else:
             self.call_after_refresh(self.cell_container.focus)
 
-    def load_notebook(self):
+    async def load_notebook(self):
         if self.path == "new_empty_terminal_notebook":
             return
 
@@ -143,16 +174,25 @@ class Notebook(Container):
 
         with open(self.path, "r") as notebook_file:
             content = json.load(notebook_file)
-            for cell in content["cells"]:
+            for idx, cell in enumerate(content["cells"]):
                 if cell["cell_type"] == "code":
-                    code_cell = CodeCell.from_nb(cell, self)
-                    self.cell_container.mount(code_cell)
+                    widget = CodeCell.from_nb(cell, self)
                 elif cell["cell_type"] == "markdown":
-                    markdown_cell = MarkdownCell.from_nb(cell)
-                    self.cell_container.mount(markdown_cell)
+                    widget = MarkdownCell.from_nb(cell)
+
+                if idx != 0:
+                    prev.next = widget
+                    widget.prev = prev
+                else:
+                    self.last_focused = widget
+
+                prev = widget
+
+                self.cell_container.mount(widget)
+                self._cells.append(widget)
 
     async def add_cell(
-        self, cell_type, position: str = "after", **cell_kwargs
+        self, cell_type: CodeCell | MarkdownCell, position: str = "after", **cell_kwargs
     ) -> CodeCell | MarkdownCell:
         """
         Position is after or before.
@@ -160,14 +200,33 @@ class Notebook(Container):
         kwargs = {position: self.last_focused}
 
         if cell_type is CodeCell:
-            cell_kwargs["notebook"] = self
+            widget = cell_type(self, **cell_kwargs)
+        else:
+            widget = cell_type(**cell_kwargs)
 
-        widget = cell_type(**cell_kwargs)
         await self.cell_container.mount(widget, **kwargs)
 
         if not self.last_focused:
             self.last_focused = widget
-            self.last_focused.focus()
+            self.last_focused.focus_widget()
+        elif position == "after":
+            next = self.last_focused.next
+            self.last_focused.next = widget
+            widget.next = next
+            widget.prev = self.last_focused
+
+            if next:
+                next.prev = widget
+
+        elif position == "before":
+            prev = self.last_focused.prev
+            self.last_focused.prev = widget
+            widget.next = self.last_focused
+            widget.prev = prev
+
+            if prev:
+                prev.next = widget
+
         return widget
 
     def to_nb(self) -> dict[str, Any]:
