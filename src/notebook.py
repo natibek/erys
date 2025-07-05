@@ -24,6 +24,7 @@ class ButtonRow(HorizontalGroup):
 
 class Notebook(Container):
     """A Textual app to manage stopwatches."""
+
     valid_notebook = reactive(True)
 
     _last_click_time: float = 0.0
@@ -71,7 +72,10 @@ class Notebook(Container):
         # Ignore buttons
         if isinstance(event.widget, CodeCell) or isinstance(event.widget, MarkdownCell):
             self.last_focused = event.widget
-        elif any(isinstance(event.widget, widgetType) for widgetType in [CodeArea, FocusMarkdown, TextArea]):
+        elif any(
+            isinstance(event.widget, widgetType)
+            for widgetType in [CodeArea, FocusMarkdown, TextArea]
+        ):
             self.last_focused = event.widget.parent.parent
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -136,7 +140,7 @@ class Notebook(Container):
         if os.path.splitext(self.path)[1] != ".ipynb":
             self.valid_notebook = False
             return
-        
+
         with open(self.path, "r") as notebook_file:
             content = json.load(notebook_file)
             for cell in content["cells"]:
@@ -147,7 +151,9 @@ class Notebook(Container):
                     markdown_cell = MarkdownCell.from_nb(cell)
                     self.cell_container.mount(markdown_cell)
 
-    async def add_cell(self, cell_type, position: str = "after", **cell_kwargs) -> CodeCell | MarkdownCell:
+    async def add_cell(
+        self, cell_type, position: str = "after", **cell_kwargs
+    ) -> CodeCell | MarkdownCell:
         """
         Position is after or before.
         """
@@ -199,5 +205,5 @@ class Notebook(Container):
             },
             "nbformat": self._nbformat,
             "nbformat_minor": self._nbformat_minor,
-            "cells": cells
+            "cells": cells,
         }

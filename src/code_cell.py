@@ -18,7 +18,6 @@ class RunLabel(Label):
         self.run_worker(code_cell.run_cell)
 
 
-
 class CodeArea(TextArea):
     offset_val: int = reactive(0)
     closing_map = {"{": "}", "(": ")", "[": "]", "'": "'", '"': '"'}
@@ -53,6 +52,7 @@ class CodeCell(HorizontalGroup):
     BINDINGS = [
         ("r", "run_cell", "Run Cell"),
     ]
+
     def __init__(
         self,
         source: str = "",
@@ -60,13 +60,13 @@ class CodeCell(HorizontalGroup):
         exec_count: int | None = None,
         metadata: dict[str, Any] = {},
         cell_id: str | None = None,
-        notebook: "Notebook" | None = None
+        notebook: "Notebook" | None = None,
     ) -> None:
         super().__init__()
 
         self.source = source
 
-        self.outputs:list[dict[str, Any]] = outputs
+        self.outputs: list[dict[str, Any]] = outputs
         self.exec_count = exec_count
         self.notebook = notebook
 
@@ -76,10 +76,14 @@ class CodeCell(HorizontalGroup):
     def compose(self) -> ComposeResult:
         with VerticalGroup(id="code-sidebar"):
             yield RunLabel("▶", id="run-button")
-            self.exec_count_display = Static(f"[{self.exec_count or ' '}]", id="exec-count")
+            self.exec_count_display = Static(
+                f"[{self.exec_count or ' '}]", id="exec-count"
+            )
             yield self.exec_count_display
         with VerticalGroup(id="code-input-output"):
-            self.code_area = CodeArea.code_editor(self.source, language="python", id="code-editor")
+            self.code_area = CodeArea.code_editor(
+                self.source, language="python", id="code-editor"
+            )
             self.outputs_group = VerticalGroup(id="outputs")
 
             yield self.code_area
@@ -87,7 +91,7 @@ class CodeCell(HorizontalGroup):
 
     def on_key(self, event: Key) -> None:
         match event.key:
-            case "enter": 
+            case "enter":
                 self.call_after_refresh(self.code_area.focus)
 
     def _on_focus(self):
@@ -97,23 +101,26 @@ class CodeCell(HorizontalGroup):
         self.styles.border = None
 
     def on_mount(self):
-        self.call_after_refresh(lambda : self.update_outputs(self.outputs)) 
+        self.call_after_refresh(lambda: self.update_outputs(self.outputs))
 
     def watch_exec_count(self, new: int | None) -> None:
-        self.call_after_refresh(lambda : self.exec_count_display.update(f"[{new or ' '}]"))
+        self.call_after_refresh(
+            lambda: self.exec_count_display.update(f"[{new or ' '}]")
+        )
 
     def action_run_cell(self) -> None:
         self.run_worker(self.run_cell)
 
     @staticmethod
-    def from_nb(nb: dict[str, Any], notebook = None) -> "CodeCell":
+    def from_nb(nb: dict[str, Any], notebook=None) -> "CodeCell":
         assert nb
         for key in ["cell_type", "execution_count", "metadata", "source", "outputs"]:
             assert key in nb
         assert nb["cell_type"] == "code"
-        
+
         source = nb["source"]
-        if isinstance(source, list): source = "".join(source)
+        if isinstance(source, list):
+            source = "".join(source)
 
         return CodeCell(
             source=source,
@@ -121,7 +128,7 @@ class CodeCell(HorizontalGroup):
             exec_count=nb["execution_count"],
             metadata=nb["metadata"],
             cell_id=nb.get("id", None),
-            notebook=notebook
+            notebook=notebook,
         )
 
     def to_nb(self):
@@ -161,7 +168,7 @@ class CodeCell(HorizontalGroup):
             match output["output_type"]:
                 case "stream":
                     if isinstance(output["text"], list):
-                        text = "".join(output["text"]) 
+                        text = "".join(output["text"])
                     else:
                         text = output["text"]
                     self.outputs_group.mount(OutputCell(text=text))
@@ -171,7 +178,7 @@ class CodeCell(HorizontalGroup):
                 case "execute_result":
                     if isinstance(output["data"]["text/plain"], list):
                         text = "".join(output["data"]["text/plain"])
-                    else: 
+                    else:
                         text = output["data"]["text/plain"]
                     self.outputs_group.mount(OutputCell(text=text))
         self.refresh()

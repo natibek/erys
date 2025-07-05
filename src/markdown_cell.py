@@ -71,7 +71,8 @@ class MarkdownCell(HorizontalGroup):
         assert nb["cell_type"] == "markdown"
 
         source = nb["source"]
-        if isinstance(source, list): source = "".join(source)
+        if isinstance(source, list):
+            source = "".join(source)
 
         return MarkdownCell(
             source=source,
@@ -81,12 +82,12 @@ class MarkdownCell(HorizontalGroup):
 
     def to_nb(self) -> dict[str, Any]:
         """
-            Format for Markdown cell
-            {
-                "cell_type" : "markdown",
-                "metadata" : {},
-                "source" : ["some *markdown*"],
-            }
+        Format for Markdown cell
+        {
+            "cell_type" : "markdown",
+            "metadata" : {},
+            "source" : ["some *markdown*"],
+        }
         """
         return {
             "cell_type": "markdown",

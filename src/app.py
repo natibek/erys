@@ -17,6 +17,7 @@ from notebook import Notebook
 from textual.events import Key
 import sys
 
+
 class Directory(DirectoryTree):
     BINDINGS = [
         ("backspace", "back_dir", "Go back up directory"),
@@ -27,8 +28,11 @@ class Directory(DirectoryTree):
         parent = Path(self.path).resolve().parent
         self.path = parent
 
-    def on_directory_tree_directory_selected(self, event: DirectoryTree.DirectorySelected) -> None:
+    def on_directory_tree_directory_selected(
+        self, event: DirectoryTree.DirectorySelected
+    ) -> None:
         self.path = Path(event.path).resolve()
+
 
 class TerminalNotebook(App):
     """A Textual app to manage stopwatches."""
@@ -39,7 +43,7 @@ class TerminalNotebook(App):
         ("n", "add", "New Notebook"),
         ("ctrl+k", "close", "Close Notebook"),
         ("ctrl+l", "clear", "Clear Tabs"),
-        ("d", "toggle_directory_tree", "Toggle Directory Tree")
+        ("d", "toggle_directory_tree", "Toggle Directory Tree"),
     ]
     tab_id = reactive("")
 
@@ -49,7 +53,7 @@ class TerminalNotebook(App):
         self.paths = [os.path.relpath(path, Path.cwd()) for path in paths]
         self.cur_tab = len(paths)
         self.tab_to_nb_id_map: dict[str, int] = {}
-    
+
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
 
@@ -60,7 +64,9 @@ class TerminalNotebook(App):
             yield self.dir_tree
 
             with Vertical():
-                self.tabs = Tabs(*[Tab(path, id=f"tab{idx}") for idx,path in enumerate(self.paths)])
+                self.tabs = Tabs(
+                    *[Tab(path, id=f"tab{idx}") for idx, path in enumerate(self.paths)]
+                )
                 yield self.tabs
                 self.switcher = ContentSwitcher(id="tab-content")
                 with self.switcher:
@@ -83,7 +89,9 @@ class TerminalNotebook(App):
             notebook_id = self.tab_to_nb_id_map[str(event.tab.label)]
             self.switcher.current = f"{notebook_id}"
 
-    def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
+    def on_directory_tree_file_selected(
+        self, event: DirectoryTree.FileSelected
+    ) -> None:
         path = os.path.relpath(event.path, Path.cwd())
 
         if path in self.tab_to_nb_id_map:
@@ -97,7 +105,7 @@ class TerminalNotebook(App):
         new_notebook = Notebook(path, tab_id)
         self.switcher.mount(new_notebook)
 
-        self.cur_tab += 1 
+        self.cur_tab += 1
         self.tabs.active = tab_id
 
     def on_key(self, event: Key) -> None:
@@ -106,14 +114,16 @@ class TerminalNotebook(App):
                 self.set_focus(self.tabs)
             case "enter":
                 if isinstance(self.app.focused, Tabs):
-                    notebook = self.switcher.query_one(f"#{self.switcher.current}", Notebook)
+                    notebook = self.switcher.query_one(
+                        f"#{self.switcher.current}", Notebook
+                    )
                     self.call_after_refresh(notebook.cell_container.focus)
 
     def action_toggle_directory_tree(self) -> None:
         self.dir_tree.display = not self.dir_tree.display
-        if self.dir_tree.display: 
+        if self.dir_tree.display:
             self.set_focus(self.dir_tree)
-        else: 
+        else:
             self.set_focus(None)
 
     def action_add(self) -> None:
@@ -143,6 +153,7 @@ class TerminalNotebook(App):
         for child in self.switcher.children:
             child.remove()
         self.tab_to_nb_id_map = {}
+
 
 if __name__ == "__main__":
     app = TerminalNotebook(sys.argv[1:])
