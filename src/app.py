@@ -42,13 +42,13 @@ class TerminalNotebook(App):
         ("d", "toggle_directory_tree", "Toggle Directory Tree")
     ]
     tab_id = reactive("")
+
     def __init__(self, paths: list[str]) -> None:
         super().__init__()
         self.theme = "dracula"
         self.paths = [os.path.relpath(path, Path.cwd()) for path in paths]
         self.cur_tab = len(paths)
         self.tab_to_nb_id_map: dict[str, int] = {}
-
     
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
@@ -70,6 +70,11 @@ class TerminalNotebook(App):
 
         yield Footer()
 
+    def on_mount(self) -> None:
+        """Focus the tabs when the app starts."""
+        self.tabs.focus()
+        self.dir_tree.display = False
+
     def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
         """Handle TabActivated message sent by Tabs."""
         if event.tab is None:
@@ -77,29 +82,6 @@ class TerminalNotebook(App):
         else:
             notebook_id = self.tab_to_nb_id_map[str(event.tab.label)]
             self.switcher.current = f"{notebook_id}"
-
-    def on_mount(self) -> None:
-        """Focus the tabs when the app starts."""
-        self.tabs.focus()
-        self.dir_tree.display = False
-
-    def action_toggle_directory_tree(self) -> None:
-        self.dir_tree.display = not self.dir_tree.display
-        if self.dir_tree.display: 
-            self.set_focus(self.dir_tree)
-        else: 
-            self.set_focus(None)
-
-    def action_add(self) -> None:
-        tab_id = f"tab{self.cur_tab}"
-        self.tabs.add_tab(Tab(tab_id, id=tab_id))
-        self.tab_to_nb_id_map[tab_id] = tab_id
-
-        new_notebook = Notebook("new_empty_termimal_notebook", tab_id)
-        self.switcher.mount(new_notebook)
-
-        self.tabs.active = tab_id
-        self.cur_tab += 1
 
     def on_directory_tree_file_selected(self, event: DirectoryTree.FileSelected) -> None:
         path = os.path.relpath(event.path, Path.cwd())
@@ -118,6 +100,33 @@ class TerminalNotebook(App):
         self.cur_tab += 1 
         self.tabs.active = tab_id
 
+    def on_key(self, event: Key) -> None:
+        match event.key:
+            case "escape":
+                self.set_focus(self.tabs)
+            case "enter":
+                if isinstance(self.app.focused, Tabs):
+                    notebook = self.switcher.query_one(f"#{self.switcher.current}", Notebook)
+                    self.call_after_refresh(notebook.cell_container.focus)
+
+    def action_toggle_directory_tree(self) -> None:
+        self.dir_tree.display = not self.dir_tree.display
+        if self.dir_tree.display: 
+            self.set_focus(self.dir_tree)
+        else: 
+            self.set_focus(None)
+
+    def action_add(self) -> None:
+        tab_id = f"tab{self.cur_tab}"
+        self.tabs.add_tab(Tab(tab_id, id=tab_id))
+        self.tab_to_nb_id_map[tab_id] = tab_id
+
+        new_notebook = Notebook("new_empty_terminal_notebook", tab_id)
+        self.switcher.mount(new_notebook)
+
+        self.tabs.active = tab_id
+        self.cur_tab += 1
+
     def action_close(self) -> None:
         """Remove active tab."""
         active_tab = self.tabs.active_tab
@@ -134,12 +143,6 @@ class TerminalNotebook(App):
         for child in self.switcher.children:
             child.remove()
         self.tab_to_nb_id_map = {}
-
-    def on_key(self, event: Key) -> None:
-        match event.key:
-            case "escape":
-                self.set_focus(None)
-
 
 if __name__ == "__main__":
     app = TerminalNotebook(sys.argv[1:])

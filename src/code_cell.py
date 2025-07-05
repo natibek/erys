@@ -3,7 +3,7 @@ from __future__ import annotations
 from textual.app import ComposeResult
 from textual.reactive import reactive
 from textual.containers import HorizontalGroup, VerticalGroup
-from textual.widgets import Static, TextArea, Label, Markdown, Log, RichLog, Collapsible
+from textual.widgets import Static, TextArea, Label, Collapsible
 from typing import Any
 from utils import get_cell_id
 from textual.events import Key
@@ -15,17 +15,13 @@ class RunLabel(Label):
 
     def on_click(self) -> None:
         code_cell: CodeCell = self.parent.parent
-        code_cell.run_cell()
+        self.run_worker(code_cell.run_cell)
 
 
 
 class CodeArea(TextArea):
     offset_val: int = reactive(0)
     closing_map = {"{": "}", "(": ")", "[": "]", "'": "'", '"': '"'}
-
-    def _on_blur(self) -> None:
-        code_cell: CodeCell = self.parent.parent
-        code_cell.focus()
 
     def on_key(self, event: Key) -> None:
         if event.character in self.closing_map:
@@ -36,7 +32,8 @@ class CodeArea(TextArea):
 
         match event.key:
             case "escape":
-                self.parent.focus()
+                code_cell: CodeCell = self.parent.parent
+                code_cell.focus()
                 event.stop()
 
 
@@ -75,6 +72,38 @@ class CodeCell(HorizontalGroup):
 
         self._metadata = metadata
         self._cell_id = cell_id or get_cell_id()
+
+    def compose(self) -> ComposeResult:
+        with VerticalGroup(id="code-sidebar"):
+            yield RunLabel("▶", id="run-button")
+            self.exec_count_display = Static(f"[{self.exec_count or ' '}]", id="exec-count")
+            yield self.exec_count_display
+        with VerticalGroup(id="code-input-output"):
+            self.code_area = CodeArea.code_editor(self.source, language="python", id="code-editor")
+            self.outputs_group = VerticalGroup(id="outputs")
+
+            yield self.code_area
+            yield self.outputs_group
+
+    def on_key(self, event: Key) -> None:
+        match event.key:
+            case "enter": 
+                self.call_after_refresh(self.code_area.focus)
+
+    def _on_focus(self):
+        self.styles.border = "solid", "lightblue"
+
+    def _on_blur(self):
+        self.styles.border = None
+
+    def on_mount(self):
+        self.call_after_refresh(lambda : self.update_outputs(self.outputs)) 
+
+    def watch_exec_count(self, new: int | None) -> None:
+        self.call_after_refresh(lambda : self.exec_count_display.update(f"[{new or ' '}]"))
+
+    def action_run_cell(self) -> None:
+        self.run_worker(self.run_cell)
 
     @staticmethod
     def from_nb(nb: dict[str, Any], notebook = None) -> "CodeCell":
@@ -122,18 +151,6 @@ class CodeCell(HorizontalGroup):
             "source": self.source,
         }
 
-    def _on_focus(self):
-        self.styles.border = "solid", "lightblue"
-
-    def _on_blur(self):
-        self.styles.border = None
-
-    def on_mount(self):
-        self.call_after_refresh(lambda : self.update_outputs(self.outputs)) 
-
-    def watch_exec_count(self, new: int | None) -> None:
-        self.call_after_refresh(lambda : self.exec_count_display.update(f"[{new or ' '}]"))
-
     async def open(self):
         self.call_after_refresh(self.code_area.focus)
 
@@ -150,9 +167,6 @@ class CodeCell(HorizontalGroup):
                     self.outputs_group.mount(OutputCell(text=text))
                 case "error":
                     text = "".join(output["traceback"])
-                    # log = RichLog(highlight=True)
-                    # log.write(text)
-                    # self.outputs_group.mount(log)#
                     self.outputs_group.mount(OutputCell(text=text))
                 case "execute_result":
                     if isinstance(output["data"]["text/plain"], list):
@@ -162,9 +176,6 @@ class CodeCell(HorizontalGroup):
                     self.outputs_group.mount(OutputCell(text=text))
         self.refresh()
 
-    def action_run_cell(self) -> None:
-        self.run_worker(self.run_cell)
-    
     async def run_cell(self):
         if not self.notebook.notebook_kernel:
             # TODO: Show warning message
@@ -173,20 +184,10 @@ class CodeCell(HorizontalGroup):
         kernel: NotebookKernel = self.notebook.notebook_kernel
 
         self.source = self.code_area.text
-        # capture the stdout and stderr
+        if not self.source:
+            return
+
         outputs, execution_count = kernel.run_code(self.source)
         self.exec_count = execution_count
         self.outputs = outputs
         self.call_next(lambda: self.update_outputs(outputs))
-
-    def compose(self) -> ComposeResult:
-        with VerticalGroup(id="code-sidebar"):
-            yield RunLabel("▶", id="run-button")
-            self.exec_count_display = Static(f"[{self.exec_count or ' '}]", id="exec-count")
-            yield self.exec_count_display
-        with VerticalGroup():
-            self.code_area = CodeArea.code_editor(self.source, language="python", id="code-editor")
-            self.outputs_group = VerticalGroup(id="outputs")
-
-            yield self.code_area
-            yield self.outputs_group

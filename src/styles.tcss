@@ -21,6 +21,11 @@ CodeCell{
     padding: 1;
     padding-left: 1;
     padding-right: 0;
+    width: 100%;
+}
+
+#cell-container {
+    width: 100%;
 }
 
 OutputCell {
@@ -29,6 +34,7 @@ OutputCell {
     min-height: 1;
     max-height: 30;
     height: auto;
+    width: 100%;
 }
 
 #code-sidebar {
