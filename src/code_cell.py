@@ -9,7 +9,6 @@ from utils import get_cell_id
 from textual.events import Key
 from notebook_kernel import NotebookKernel
 
-MIN_HEIGHT = 3
 COLLAPSED_COLOR = "green"
 EXPANDED_COLOR = "white"
 
@@ -27,12 +26,26 @@ class CodeCollapseLabel(Label):
         code_cell: CodeCell = self.parent.parent.parent
 
         if collapsed:
-            code_cell.code_area.move_cursor((0,0))
-            code_cell.code_area.styles.height = MIN_HEIGHT
+            placeholder = self.get_placeholder(code_cell.code_area.text)
+            code_cell.collapsed_code.update(f"{placeholder}...")
+            code_cell.code_switcher.current = "collapsed-code"
+            code_cell.exec_count_display.display = False
             self.styles.color = COLLAPSED_COLOR
+            self.update("┃\n┃")
         else:
-            code_cell.code_area.styles.height = "auto"
+            code_cell.code_switcher.current = "code-editor"
+            code_cell.exec_count_display.display = True
             self.styles.color = EXPANDED_COLOR
+            self.update("┃\n┃\n┃")
+
+    def get_placeholder(self, text: str) -> str:
+        split = text.splitlines()
+        if len(split) == 0:
+            return ""
+            
+        for line in split:
+            if line != "": return line
+
 
 class OutputCollapseLabel(Label):
     collapsed = var(False, init=False)
@@ -47,11 +60,11 @@ class OutputCollapseLabel(Label):
     def watch_collapsed(self, collapsed: bool) -> None:
         code_cell: CodeCell = self.parent.parent
 
-        if code_cell.switcher.current == "outputs" and len(code_cell.outputs) > 0:
-            code_cell.switcher.current = "collapsed-output"
+        if collapsed and len(code_cell.outputs) > 0:
+            code_cell.output_switcher.current = "collapsed-output"
             self.styles.color = COLLAPSED_COLOR
-        elif code_cell.switcher.current == "collapsed-output":
-            code_cell.switcher.current = "outputs"
+        else:
+            code_cell.output_switcher.current = "outputs"
             self.styles.color = EXPANDED_COLOR
 
 class RunLabel(Label):
@@ -75,7 +88,7 @@ class CodeArea(TextArea):
 
         match event.key:
             case "escape":
-                code_cell: CodeCell = self.parent.parent
+                code_cell: CodeCell = self.parent.parent.parent
                 code_cell.focus()
                 event.stop()
 
@@ -135,15 +148,19 @@ class CodeCell(VerticalGroup):
             self.code_area = CodeArea.code_editor(
                 self.source, language="python", id="code-editor"
             )
-            yield self.code_area
+            self.collapsed_code = Static("Collapsed Code...", id="collapsed-code")
+            self.code_switcher = ContentSwitcher(id="collapse-code", initial="code-editor")
+            with self.code_switcher:
+                yield self.code_area
+                yield self.collapsed_code
 
         with HorizontalGroup(id="output-section"):
             self.output_collapse_btn = OutputCollapseLabel(id="output-collapse-button").with_tooltip("Collapse Output")
 
             self.outputs_group = VerticalGroup(id="outputs")
-            self.switcher = ContentSwitcher(id="collapse-outputs", initial="outputs")
+            self.output_switcher = ContentSwitcher(id="collapse-outputs", initial="outputs")
             yield self.output_collapse_btn
-            with self.switcher:
+            with self.output_switcher:
                 yield self.outputs_group
                 yield Static("Outputs are collapsed...", id="collapsed-output")
 
@@ -171,8 +188,12 @@ class CodeCell(VerticalGroup):
         self.run_worker(self.run_cell)
     
     def action_collapse(self) -> None:
-        self.collapse_btn.collapsed = not self.collapse_btn.collapsed
-        self.output_collapse_btn.collapsed = not self.output_collapse_btn.collapsed
+        if not self.collapse_btn.collapsed or not self.output_collapse_btn.collapsed:
+            self.collapse_btn.collapsed = True
+            self.output_collapse_btn.collapsed = True
+        else:
+            self.collapse_btn.collapsed = not self.collapse_btn.collapsed
+            self.output_collapse_btn.collapsed = not self.output_collapse_btn.collapsed
 
 
     @staticmethod

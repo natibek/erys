@@ -87,8 +87,14 @@ OutputCell {
     margin: 1 0 0 0;
 }
 
-#collapsed-output {
+#collapsed-output,  {
     margin: 1 0 0 1;
+}
+
+#collapsed-code {
+    margin: 0 0 0 1;
+    border: gray solid;
+    padding: 0;
 }
 
 #exec-count {

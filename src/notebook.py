@@ -65,9 +65,11 @@ class Notebook(Container):
             self.last_focused = event.widget
         elif isinstance(event.widget, OutputCell):
             self.last_focused = event.widget.parent.parent.parent.parent
+        elif isinstance(event.widget, CodeArea):
+            self.last_focused = event.widget.parent.parent.parent
         elif any(
             isinstance(event.widget, widgetType)
-            for widgetType in [CodeArea, FocusMarkdown, TextArea]
+            for widgetType in [FocusMarkdown, TextArea]
         ):
             self.last_focused = event.widget.parent.parent
 
