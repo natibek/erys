@@ -35,7 +35,7 @@ CodeCell{
 
 OutputCell {
     padding-left: 1;
-    padding-right: 1;
+    padding-right: 5;
     min-height: 1;
     max-height: 30;
     height: auto;
@@ -62,7 +62,33 @@ OutputCell {
     width: 2;
     border: none;
     padding: 0;
-    margin: 1 0 0 2 ;
+    margin: 1 0 0 2;
+}
+
+#code-collapse-button {
+    height: auto;
+    text-style: bold;
+    border: none;
+    padding: 0;
+    margin: 1 0 0 0;
+}
+
+#output-collapse-button {
+    width: 5;
+    height: auto;
+    text-style: bold;
+    border: none;
+    padding: 0;
+    margin: 1 0 0 0;
+    offset-x: 4;
+}
+
+#collapse-outputs {
+    margin: 1 0 0 0;
+}
+
+#collapsed-output {
+    margin: 1 0 0 1;
 }
 
 #exec-count {
@@ -72,9 +98,5 @@ OutputCell {
 }
 
 #cell-container {
-    margin: 2 1;
-}
-
-#header-rul {
-    padding: 0;
+    margin: 1;
 }

@@ -3,18 +3,63 @@ from __future__ import annotations
 from textual.app import ComposeResult
 from textual.reactive import var
 from textual.containers import HorizontalGroup, VerticalGroup
-from textual.widgets import Static, TextArea, Label, Collapsible
+from textual.widgets import Static, TextArea, Label, ContentSwitcher
 from typing import Any
 from utils import get_cell_id
 from textual.events import Key
 from notebook_kernel import NotebookKernel
 
+MIN_HEIGHT = 3
+COLLAPSED_COLOR = "green"
+EXPANDED_COLOR = "white"
+
+class CodeCollapseLabel(Label):
+    collapsed = var(False, init=False)
+
+    def __init__(self, collapsed: bool = False, id: str = "") -> None:
+        super().__init__("┃\n┃\n┃", id=id)
+        self.collapsed = collapsed
+    
+    def on_click(self) -> None:
+        self.collapsed = not self.collapsed
+
+    def watch_collapsed(self, collapsed) -> None:
+        code_cell: CodeCell = self.parent.parent.parent
+
+        if collapsed:
+            code_cell.code_area.move_cursor((0,0))
+            code_cell.code_area.styles.height = MIN_HEIGHT
+            self.styles.color = COLLAPSED_COLOR
+        else:
+            code_cell.code_area.styles.height = "auto"
+            self.styles.color = EXPANDED_COLOR
+
+class OutputCollapseLabel(Label):
+    collapsed = var(False, init=False)
+
+    def __init__(self, collapsed: bool = False, id: str = "") -> None:
+        super().__init__("\n┃", id=id)
+        self.collapsed = collapsed
+    
+    def on_click(self) -> None:
+        self.collapsed = not self.collapsed
+
+    def watch_collapsed(self, collapsed: bool) -> None:
+        code_cell: CodeCell = self.parent.parent
+
+        if code_cell.switcher.current == "outputs" and len(code_cell.outputs) > 0:
+            code_cell.switcher.current = "collapsed-output"
+            self.styles.color = COLLAPSED_COLOR
+        elif code_cell.switcher.current == "collapsed-output":
+            code_cell.switcher.current = "outputs"
+            self.styles.color = EXPANDED_COLOR
 
 class RunLabel(Label):
-    can_focus = True
+    def __init__(self, id: str = "") -> None:
+        super().__init__("▶", id=id)
 
     def on_click(self) -> None:
-        code_cell: CodeCell = self.parent.parent
+        code_cell: CodeCell = self.parent.parent.parent.parent
         self.run_worker(code_cell.run_cell)
 
 
@@ -34,7 +79,6 @@ class CodeArea(TextArea):
                 code_cell.focus()
                 event.stop()
 
-
 class OutputCell(TextArea):
     read_only = True
 
@@ -44,11 +88,13 @@ class OutputCell(TextArea):
     def _on_blur(self):
         self.styles.border = None
 
-class CodeCell(HorizontalGroup):
+class CodeCell(VerticalGroup):
     can_focus = True
     exec_count: int | None = var(None)
+
     BINDINGS = [
         ("r", "run_cell", "Run Cell"),
+        ("c", "collapse", "Collapse Cell"),
     ]
 
     next = None
@@ -73,24 +119,33 @@ class CodeCell(HorizontalGroup):
 
         self._metadata = metadata
         self._cell_id = cell_id or get_cell_id()
+        self._collapsed = metadata.get("collapsed", False)
 
     def compose(self) -> ComposeResult:
-        # with Collapsible(title="title"):
-        #     with HorizontalGroup():
-        with VerticalGroup(id="code-sidebar"):
-            yield RunLabel("▶", id="run-button").with_tooltip("Run")
-            self.exec_count_display = Static(
-                f"[{self.exec_count or ' '}]", id="exec-count"
-            )
-            yield self.exec_count_display
-        with VerticalGroup(id="code-input-output"):
+        with HorizontalGroup():
+            with HorizontalGroup(id="code-sidebar"):
+                self.collapse_btn = CodeCollapseLabel(collapsed=self._collapsed, id="code-collapse-button").with_tooltip("Collapse Code")
+                yield self.collapse_btn
+                with VerticalGroup():
+                    yield RunLabel(id="run-button").with_tooltip("Run")
+                    self.exec_count_display = Static(
+                        f"[{self.exec_count or ' '}]", id="exec-count"
+                    )
+                    yield self.exec_count_display
             self.code_area = CodeArea.code_editor(
                 self.source, language="python", id="code-editor"
             )
-            self.outputs_group = VerticalGroup(id="outputs")
-
             yield self.code_area
-            yield self.outputs_group
+
+        with HorizontalGroup(id="output-section"):
+            self.output_collapse_btn = OutputCollapseLabel(id="output-collapse-button").with_tooltip("Collapse Output")
+
+            self.outputs_group = VerticalGroup(id="outputs")
+            self.switcher = ContentSwitcher(id="collapse-outputs", initial="outputs")
+            yield self.output_collapse_btn
+            with self.switcher:
+                yield self.outputs_group
+                yield Static("Outputs are collapsed...", id="collapsed-output")
 
     def on_key(self, event: Key) -> None:
         match event.key:
@@ -104,7 +159,8 @@ class CodeCell(HorizontalGroup):
         self.styles.border = None
 
     def on_mount(self):
-        self.call_after_refresh(lambda: self.update_outputs(self.outputs))
+        self.output_collapse_btn.display = len(self.outputs) > 0
+        self.call_after_refresh(self.update_outputs, self.outputs)
 
     def watch_exec_count(self, new: int | None) -> None:
         self.call_after_refresh(
@@ -113,6 +169,11 @@ class CodeCell(HorizontalGroup):
 
     def action_run_cell(self) -> None:
         self.run_worker(self.run_cell)
+    
+    def action_collapse(self) -> None:
+        self.collapse_btn.collapsed = not self.collapse_btn.collapsed
+        self.output_collapse_btn.collapsed = not self.output_collapse_btn.collapsed
+
 
     @staticmethod
     def from_nb(nb: dict[str, Any], notebook=None) -> "CodeCell":
@@ -168,8 +229,14 @@ class CodeCell(HorizontalGroup):
         self.call_after_refresh(self.code_area.focus)
 
     async def update_outputs(self, outputs: list[dict[str, Any]]) -> None:
-        self.outputs_group = self.query_one("#outputs", VerticalGroup)
+        try:
+            self.outputs_group = self.query_one("#outputs", VerticalGroup)
+        except:
+            return
+
+        self.output_collapse_btn.display = len(outputs) > 0
         await self.outputs_group.remove_children()
+
         for output in outputs:
             match output["output_type"]:
                 case "stream":
