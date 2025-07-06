@@ -54,8 +54,6 @@ class MarkdownCell(HorizontalGroup):
                     self.source = self.text_area.text
                     self.markdown.update(self.source)
                     self.markdown.focus()
-                # case "up" | "down":
-                #     event.stop()
 
         elif self.switcher.current == "markdown":
             match event.key:
@@ -76,8 +74,8 @@ class MarkdownCell(HorizontalGroup):
     def focus_widget(self) -> None:
         if cur := self.switcher.current:
             self.query_one(f"#{cur}").focus()
-        else:
-            self.query_one(f"#markdown").focus()
+        # else:
+        #     self.call_after_refresh(self.query_one(f"#markdown").focus)
 
     @staticmethod
     def from_nb(nb: dict[str, Any]) -> "MarkdownCell":

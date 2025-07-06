@@ -1,12 +1,10 @@
-from textual.reactive import reactive
 from textual.app import ComposeResult
-from textual.widgets import Button, Rule, Label, TextArea
+from textual.widgets import Button, Label, TextArea
 from textual.containers import HorizontalGroup, VerticalScroll, Container
 from textual.events import Key, DescendantFocus
 
 from typing import Any
-import os.path
-import json
+import json, time
 
 from markdown_cell import MarkdownCell, FocusMarkdown
 from code_cell import CodeCell, CodeArea
@@ -24,10 +22,7 @@ class ButtonRow(HorizontalGroup):
 
 class Notebook(Container):
     """A Textual app to manage stopwatches."""
-
-    valid_notebook = reactive(True)
     last_focused = None
-    idx = None
 
     SCREENS = {"save_as_screen": SaveAsScreen}
     BINDINGS = [
@@ -51,17 +46,13 @@ class Notebook(Container):
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield ButtonRow()
-        yield Rule(line_style="double", id="header-rule")
         self.cell_container = VerticalScroll(id="cell-container")
         yield self.cell_container
 
-        yield Label(
-            f"{self.path} is not a valid notebook. "
-            "File does not have a .ipynb extension."
-        )
-
     def on_mount(self):
-        self.call_after_refresh(self.load_notebook)
+        if self.path != "new_empty_terminal_notebook":
+            self.call_after_refresh(self.load_notebook)
+
         self.call_after_refresh(self.focus_notebook)
 
     def on_unmount(self) -> None:
@@ -105,6 +96,10 @@ class Notebook(Container):
             case "restart-shell":
                 self.notebook_kernel.restart_kernel()
             case "run-all":
+                if not self.notebook_kernel:
+                    self.notify("No kernel available for notebook.", severity="error", timeout=8)
+                    return
+
                 for child in self.cell_container.children:
                     if isinstance(child, CodeCell):
                         await child.run_cell()
@@ -131,7 +126,6 @@ class Notebook(Container):
         # TODO: Change the focused cell when one is deleted
         if self.last_focused:
             self.call_after_refresh(self.last_focused.remove)
-            
             # update the prev and next pointers 
             # update the new focused cell
             last_focused = None
@@ -149,7 +143,7 @@ class Notebook(Container):
                 self.last_focused.focus_widget()
 
     def watch_valid_notebook(self, is_valid: bool) -> None:
-        for node in [ButtonRow, Rule, VerticalScroll]:
+        for node in [ButtonRow, VerticalScroll]:
             self.query_one(node).display = is_valid
 
         self.query_one(Label).display = not is_valid
@@ -160,18 +154,7 @@ class Notebook(Container):
         else:
             self.call_after_refresh(self.cell_container.focus)
 
-    async def load_notebook(self):
-        if self.path == "new_empty_terminal_notebook":
-            return
-
-        if not os.path.exists(self.path):
-            self.valid_notebook = False
-            return
-
-        if os.path.splitext(self.path)[1] != ".ipynb":
-            self.valid_notebook = False
-            return
-
+    def load_notebook(self):
         with open(self.path, "r") as notebook_file:
             content = json.load(notebook_file)
             for idx, cell in enumerate(content["cells"]):
@@ -187,9 +170,7 @@ class Notebook(Container):
                     self.last_focused = widget
 
                 prev = widget
-
-                self.cell_container.mount(widget)
-                self._cells.append(widget)
+                self.call_next(self.cell_container.mount, widget)
 
     async def add_cell(
         self, cell_type: CodeCell | MarkdownCell, position: str = "after", **cell_kwargs

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.reactive import reactive
+from textual.reactive import var
 from textual.containers import HorizontalGroup, VerticalGroup
 from textual.widgets import Static, TextArea, Label, Collapsible
 from typing import Any
@@ -19,7 +19,6 @@ class RunLabel(Label):
 
 
 class CodeArea(TextArea):
-    offset_val: int = reactive(0)
     closing_map = {"{": "}", "(": ")", "[": "]", "'": "'", '"': '"'}
 
     def on_key(self, event: Key) -> None:
@@ -45,10 +44,9 @@ class OutputCell(TextArea):
     def _on_blur(self):
         self.styles.border = None
 
-
 class CodeCell(HorizontalGroup):
     can_focus = True
-    exec_count: int | None = reactive(None)
+    exec_count: int | None = var(None)
     BINDINGS = [
         ("r", "run_cell", "Run Cell"),
     ]
@@ -77,8 +75,10 @@ class CodeCell(HorizontalGroup):
         self._cell_id = cell_id or get_cell_id()
 
     def compose(self) -> ComposeResult:
+        # with Collapsible(title="title"):
+        #     with HorizontalGroup():
         with VerticalGroup(id="code-sidebar"):
-            yield RunLabel("▶", id="run-button")
+            yield RunLabel("▶", id="run-button").with_tooltip("Run")
             self.exec_count_display = Static(
                 f"[{self.exec_count or ' '}]", id="exec-count"
             )
@@ -191,7 +191,7 @@ class CodeCell(HorizontalGroup):
 
     async def run_cell(self):
         if not self.notebook.notebook_kernel:
-            # TODO: Show warning message
+            self.notify("No kernel available for notebook.", severity="error", timeout=8)
             return
 
         kernel: NotebookKernel = self.notebook.notebook_kernel

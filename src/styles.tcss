@@ -5,6 +5,11 @@ Tabs {
     dock: left;
     width: 20%;
     border: lightblue solid;
+    display: none;
+}
+
+ButtonRow {
+    margin-left: 2;
 }
 
 Markdown, TextArea {

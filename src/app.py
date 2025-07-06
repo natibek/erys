@@ -92,6 +92,14 @@ class TerminalNotebook(App):
     def on_directory_tree_file_selected(
         self, event: DirectoryTree.FileSelected
     ) -> None:
+        if not os.path.exists(event.path):
+            self.notify(f"{event.path} does not exist.", severity="error", timeout=8)
+            return 
+
+        if os.path.splitext(event.path)[1] != ".ipynb":
+            self.notify(f"{event.path} is not a jupyter notebook.", severity="error", timeout=8)
+            return
+
         path = os.path.relpath(event.path, Path.cwd())
 
         if path in self.tab_to_nb_id_map:
@@ -99,14 +107,15 @@ class TerminalNotebook(App):
             return
 
         tab_id = f"tab{self.cur_tab}"
-        self.tabs.add_tab(Tab(path, id=tab_id))
-        self.tab_to_nb_id_map[path] = tab_id
 
         new_notebook = Notebook(path, tab_id)
-        self.switcher.mount(new_notebook)
+        self.tabs.add_tab(Tab(path, id=tab_id))
 
-        self.cur_tab += 1
         self.tabs.active = tab_id
+
+        self.switcher.mount(new_notebook)
+        self.tab_to_nb_id_map[path] = tab_id
+        self.cur_tab += 1
 
     def on_key(self, event: Key) -> None:
         match event.key:
@@ -120,7 +129,7 @@ class TerminalNotebook(App):
                     notebook = self.switcher.query_one(
                         f"#{self.switcher.current}", Notebook
                     )
-                    self.call_after_refresh(notebook.focus_notebook)
+                    self.call_next(notebook.focus_notebook)
 
     def action_toggle_directory_tree(self) -> None:
         self.dir_tree.display = not self.dir_tree.display
@@ -150,12 +159,16 @@ class TerminalNotebook(App):
             self.switcher.remove_children(f"#{notebook_id}")
             del self.tab_to_nb_id_map[active_tab.label]
 
+        if len(self.tab_to_nb_id_map) == 0:
+            self.switcher.current = None
+
     def action_clear(self) -> None:
         """Clear the tabs."""
         self.tabs.clear()
         for child in self.switcher.children:
             child.remove()
         self.tab_to_nb_id_map = {}
+        self.switcher.current = None
 
 
 if __name__ == "__main__":
