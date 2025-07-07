@@ -55,6 +55,35 @@ class NotebookKernel:
                     match msg["header"]["msg_type"]:
                         case "execute_input":
                             execution_count = msg["content"]["execution_count"]
+                        case "display_data":
+                            # {
+                            #    "output_type": "display_data",
+                            #    "data": {
+                            #        "text/plain": "[multiline text data]",
+                            #        "image/png": "[base64-encoded-multiline-png-data]",
+                            #        "application/json": {
+                            #            # JSON data is included as-is
+                            #            "key1": "data",
+                            #            "key2": ["some", "values"],
+                            #            "key3": {"more": "data"},
+                            #        },
+                            #        "application/vnd.exampleorg.type+json": {
+                            #            # JSON data, included as-is, when the mime-type key ends in +json
+                            #            "key1": "data",
+                            #            "key2": ["some", "values"],
+                            #            "key3": {"more": "data"},
+                            #        },
+                            #    },
+                            #    "metadata": {
+                            #        "image/png": {
+                            #            "width": 640,
+                            #            "height": 480,
+                            #        },
+                            #    },
+                            # }
+                            output = msg["content"]
+                            output["output_type"] = "diplay_data"
+                            outputs.append(output)
                         case "stream":
                             # {
                             #   "output_type" : "stream",

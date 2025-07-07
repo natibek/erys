@@ -5,9 +5,14 @@ from textual.containers import HorizontalGroup
 from typing import Any
 from time import time
 from utils import get_cell_id, DOUBLE_CLICK_INTERVAL
+import pyperclip
 
 PLACEHOLDER = "*Empty markdown cell, double-click or press enter to edit.*"
 
+class CopyTextAreaMarkdown(TextArea):
+    def on_key(self, event: Key):
+        if event.key == "ctrl+c":
+            pyperclip.copy(self.selected_text)
 
 class FocusMarkdown(Markdown):
     can_focus = True
@@ -39,7 +44,7 @@ class MarkdownCell(HorizontalGroup):
     def compose(self) -> ComposeResult:
         self.switcher = ContentSwitcher(initial="markdown", id="text-cell")
         with self.switcher:
-            self.text_area = TextArea(self.source, id="raw-text")
+            self.text_area = CopyTextAreaMarkdown(self.source, id="raw-text")
             self.markdown = FocusMarkdown(self.source, id="markdown")
             yield self.text_area
             yield self.markdown

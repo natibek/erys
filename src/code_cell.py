@@ -1,12 +1,13 @@
 from __future__ import annotations
+import pyperclip
 from asyncio import to_thread
 from textual.app import ComposeResult
 from textual.reactive import var
 from textual.containers import HorizontalGroup, VerticalGroup
-from textual.widgets import Static, TextArea, Label, ContentSwitcher
+from textual.widgets import Static, TextArea, Label, ContentSwitcher, Pretty
 from typing import Any
 from utils import get_cell_id
-from textual.events import Key
+from textual.events import Key, DescendantBlur
 from notebook_kernel import NotebookKernel
 
 COLLAPSED_COLOR = "green"
@@ -46,6 +47,10 @@ class CodeCollapseLabel(Label):
         for line in split:
             if line != "": return line
 
+class CopyTextArea(TextArea):
+    def on_key(self, event: Key):
+        if event.key == "ctrl+c":
+            pyperclip.copy(self.selected_text)
 
 class OutputCollapseLabel(Label):
     collapsed = var(False, init=False)
@@ -89,7 +94,7 @@ class RunLabel(Label):
         self.tooltip = self.toolips[is_running]
 
 
-class CodeArea(TextArea):
+class CodeArea(CopyTextArea):
     closing_map = {"{": "}", "(": ")", "[": "]", "'": "'", '"': '"'}
 
     def on_key(self, event: Key) -> None:
@@ -105,13 +110,41 @@ class CodeArea(TextArea):
                 code_cell.focus()
                 event.stop()
 
-class OutputCell(TextArea):
+class OutputJson(HorizontalGroup):
+    can_focus = True
+
+    def __init__(self, data):
+        super().__init__()
+        self.data = data
+        self.output_text = CopyTextArea(str(self.data), id="text")
+        self.output_text.read_only = True
+        self.output_text.styles.padding = 0
+        self.output_text.styles.margin = 0
+        self.output_text.styles.border = "solid", "gray"
+
+    def compose(self) -> ComposeResult:
+        self.switcher = ContentSwitcher(initial="json")
+        with self.switcher:
+            yield Pretty(self.data, id="json")
+            yield self.output_text
+
+    def _on_focus(self) -> None:
+        self.switcher.current = "text"
+
+    def on_descendant_blur(self, event: DescendantBlur) -> None:
+        self.switcher.current = "json"
+
+    def _on_blur(self) -> None:
+        if not self.app.focused or self.app.focused != self.output_text:
+            self.switcher.current = "json"
+
+class OutputText(CopyTextArea):
     read_only = True
 
-    def _on_focus(self):
+    def _on_focus(self) -> None:
         self.styles.border = "solid", "gray"
 
-    def _on_blur(self):
+    def _on_blur(self) -> None:
         self.styles.border = None
 
 class CodeCell(VerticalGroup):
@@ -279,16 +312,24 @@ class CodeCell(VerticalGroup):
                         text = "".join(output["text"])
                     else:
                         text = output["text"]
-                    self.outputs_group.mount(OutputCell(text=text))
+                    self.outputs_group.mount(OutputText(text=text))
                 case "error":
                     text = "".join(output["traceback"])
-                    self.outputs_group.mount(OutputCell(text=text))
-                case "execute_result":
-                    if isinstance(output["data"]["text/plain"], list):
-                        text = "".join(output["data"]["text/plain"])
-                    else:
-                        text = output["data"]["text/plain"]
-                    self.outputs_group.mount(OutputCell(text=text))
+                    self.outputs_group.mount(OutputText(text=text))
+                case "execute_result" | "display_data":
+                    for type, data in output["data"].items():
+                        match type:
+                            case "text/plain":
+                                if isinstance(data, list):
+                                    text = "".join(data)
+                                else:
+                                    text = data
+                                self.outputs_group.mount(OutputText(text=text))
+                            case "application/json":
+                                self.outputs_group.mount(OutputJson(data))
+                            case "img/png":
+                                self.outputs_group.mount(OutputJson(data))
+
         self.refresh()
 
     async def run_cell(self) -> None:

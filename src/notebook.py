@@ -1,13 +1,13 @@
 from textual.app import ComposeResult
-from textual.widgets import Button, Label, TextArea
+from textual.widgets import Button, TextArea
 from textual.containers import HorizontalGroup, VerticalScroll, Container
 from textual.events import Key, DescendantFocus
 
 from typing import Any
-import json, time
+import json
 
-from markdown_cell import MarkdownCell, FocusMarkdown
-from code_cell import CodeCell, CodeArea, OutputCell
+from markdown_cell import MarkdownCell, FocusMarkdown, CopyTextAreaMarkdown
+from code_cell import CodeCell, CodeArea, OutputText, OutputJson
 from notebook_kernel import NotebookKernel
 from save_as_screen import SaveAsScreen
 
@@ -63,13 +63,13 @@ class Notebook(Container):
         # Ignore buttons
         if isinstance(event.widget, CodeCell) or isinstance(event.widget, MarkdownCell):
             self.last_focused = event.widget
-        elif isinstance(event.widget, OutputCell):
+        elif isinstance(event.widget, OutputText) or isinstance(event.widget, OutputJson):
             self.last_focused = event.widget.parent.parent.parent.parent
         elif isinstance(event.widget, CodeArea):
             self.last_focused = event.widget.parent.parent.parent
         elif any(
             isinstance(event.widget, widgetType)
-            for widgetType in [FocusMarkdown, TextArea]
+            for widgetType in [FocusMarkdown, CopyTextAreaMarkdown]
         ):
             self.last_focused = event.widget.parent.parent
 
