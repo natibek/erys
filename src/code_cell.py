@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+from asyncio import to_thread
 from textual.app import ComposeResult
 from textual.reactive import var
 from textual.containers import HorizontalGroup, VerticalGroup
@@ -68,12 +68,25 @@ class OutputCollapseLabel(Label):
             self.styles.color = EXPANDED_COLOR
 
 class RunLabel(Label):
+    running: bool = var(False, init=False)
+    glyphs = {False: "▶", True: "□"}
+    toolips= {False: "Run", True: "Interrupt"}
+
     def __init__(self, id: str = "") -> None:
-        super().__init__("▶", id=id)
+        super().__init__(self.glyphs[False], id=id)
+        self.tooltip = self.toolips[False]
 
     def on_click(self) -> None:
         code_cell: CodeCell = self.parent.parent.parent.parent
-        self.run_worker(code_cell.run_cell)
+
+        if not self.running:
+            self.run_worker(code_cell.run_cell)
+        else:
+            code_cell.interrupt_cell()
+
+    def watch_running(self, is_running: bool) -> None:
+        self.update(self.glyphs[is_running])
+        self.tooltip = self.toolips[is_running]
 
 
 class CodeArea(TextArea):
@@ -140,7 +153,8 @@ class CodeCell(VerticalGroup):
                 self.collapse_btn = CodeCollapseLabel(collapsed=self._collapsed, id="code-collapse-button").with_tooltip("Collapse Code")
                 yield self.collapse_btn
                 with VerticalGroup():
-                    yield RunLabel(id="run-button").with_tooltip("Run")
+                    self.run_label = RunLabel(id="run-button")
+                    yield self.run_label
                     self.exec_count_display = Static(
                         f"[{self.exec_count or ' '}]", id="exec-count"
                     )
@@ -184,7 +198,7 @@ class CodeCell(VerticalGroup):
             lambda: self.exec_count_display.update(f"[{new or ' '}]")
         )
 
-    def action_run_cell(self) -> None:
+    async def action_run_cell(self) -> None:
         self.run_worker(self.run_cell)
     
     def action_collapse(self) -> None:
@@ -277,7 +291,7 @@ class CodeCell(VerticalGroup):
                     self.outputs_group.mount(OutputCell(text=text))
         self.refresh()
 
-    async def run_cell(self):
+    async def run_cell(self) -> None:
         if not self.notebook.notebook_kernel:
             self.notify("No kernel available for notebook.", severity="error", timeout=8)
             return
@@ -288,7 +302,17 @@ class CodeCell(VerticalGroup):
         if not self.source:
             return
 
-        outputs, execution_count = kernel.run_code(self.source)
+        self.run_label.running = True
+        outputs, execution_count = await to_thread(kernel.run_code, self.source)
+        self.run_label.running = False
         self.exec_count = execution_count
         self.outputs = outputs
         self.call_next(self.update_outputs, outputs)
+
+    def interrupt_cell(self) -> None:
+        if not self.notebook.notebook_kernel:
+            self.notify("No kernel available for notebook.", severity="error", timeout=8)
+            return
+
+        kernel: NotebookKernel = self.notebook.notebook_kernel
+        kernel.interrupt_kernel()
