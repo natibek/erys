@@ -87,12 +87,10 @@ class Notebook(Container):
             match event.key:
                 case "up":
                     if self.last_focused and (prev_cell := self.last_focused.prev):
-                        prev_cell.focus_widget()
-                        # self.last_focused = prev_cell
+                        prev_cell.focus()
                 case "down":
                     if self.last_focused and (next_cell := self.last_focused.next):
-                        next_cell.focus_widget()
-                        # self.last_focused = next_cell
+                        next_cell.focus()
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
@@ -156,7 +154,7 @@ class Notebook(Container):
             self.last_focused = last_focused
 
             if self.last_focused:
-                self.last_focused.focus_widget()
+                self.last_focused.focus()
 
     async def action_move_up(self) -> None:
         if not self.last_focused: return 
@@ -180,7 +178,7 @@ class Notebook(Container):
             self.last_focused.remove()
             await self.cell_container.mount(clone, before=clone.next)
             self.last_focused = clone
-            self.last_focused.focus_widget()
+            self.last_focused.focus()
 
     async def action_move_down(self) -> None:
         if not self.last_focused: return 
@@ -205,11 +203,11 @@ class Notebook(Container):
             self.last_focused.remove()
             await self.cell_container.mount(clone, after=clone.prev)
             self.last_focused = clone
-            self.last_focused.focus_widget()
+            self.last_focused.focus()
 
     def focus_notebook(self):
         if self.last_focused:
-            self.call_after_refresh(self.last_focused.focus_widget)
+            self.call_after_refresh(self.last_focused.focus)
         else:
             self.call_after_refresh(self.cell_container.focus)
 
@@ -253,7 +251,7 @@ class Notebook(Container):
 
         if not self.last_focused:
             self.last_focused = widget
-            self.last_focused.focus_widget()
+            self.last_focused.focus()
         elif position == "after":
             next = self.last_focused.next
             self.last_focused.next = widget

@@ -172,6 +172,7 @@ class CodeCell(VerticalGroup):
         exec_count: int | None = None,
         metadata: dict[str, Any] = {},
         cell_id: str | None = None,
+        language: str = "Python"
     ) -> None:
         super().__init__()
         self.notebook = notebook
@@ -184,6 +185,7 @@ class CodeCell(VerticalGroup):
         self._metadata = metadata
         self._cell_id = cell_id or get_cell_id()
         self._collapsed = metadata.get("collapsed", False)
+        self._language = language
 
     def compose(self) -> ComposeResult:
         with HorizontalGroup():
@@ -201,7 +203,7 @@ class CodeCell(VerticalGroup):
                     yield self.exec_count_display
             self.code_area = CodeArea.code_editor(
                 self.source,
-                language="python",
+                language=self._language.lower(),
                 id="code-editor",
                 soft_wrap=True,
                 theme="vscode_dark",
@@ -235,6 +237,7 @@ class CodeCell(VerticalGroup):
 
     def _on_focus(self):
         self.styles.border = "solid", "lightblue"
+        self.border_subtitle = self._language
 
     def _on_blur(self):
         self.styles.border = None
@@ -305,7 +308,7 @@ class CodeCell(VerticalGroup):
             "outputs": self.outputs,
             "source": self.source,
         }
-    
+
     def clone(self) -> "CodeCell":
         clone = CodeCell(
             source=self.code_area.text,
@@ -314,6 +317,7 @@ class CodeCell(VerticalGroup):
             metadata=self._metadata,
             cell_id=self._cell_id,
             notebook=self.notebook,
+            language=self._language,
         )
         clone.next = self.next
         clone.prev = self.prev
@@ -343,7 +347,9 @@ class CodeCell(VerticalGroup):
                         text = output["text"]
                     self.outputs_group.mount(OutputText(text=text))
                 case "error":
-                    text = "".join(output["traceback"])
+                    text = "\n".join(output["traceback"])
+                    with open("output", "w") as f:
+                        f.write(f"{text}\n")
                     self.outputs_group.mount(OutputText(text=text))
                 case "execute_result" | "display_data":
                     for type, data in output["data"].items():

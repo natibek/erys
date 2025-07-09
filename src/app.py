@@ -78,7 +78,7 @@ class TerminalNotebook(App):
 
     def __init__(self, paths: list[str]) -> None:
         super().__init__()
-        self.theme = "dracula"
+        self.theme = "textual-dark"
         self.paths = [
             os.path.relpath(path, Path.cwd())
             for path in paths

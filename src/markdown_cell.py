@@ -97,6 +97,7 @@ class MarkdownCell(HorizontalGroup):
 
     def _on_focus(self):
         self.styles.border = "solid", "lightblue"
+        self.border_subtitle = "Markdown"
 
     def _on_blur(self):
         self.styles.border = None
@@ -121,6 +122,8 @@ class MarkdownCell(HorizontalGroup):
         now = time()
         if now - self._last_click_time <= DOUBLE_CLICK_INTERVAL:
             self.on_double_click(event)
+        else:
+            self.focus()
         self._last_click_time = now
 
     def on_double_click(self, event: MouseDown) -> None:
