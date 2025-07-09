@@ -3,11 +3,11 @@ import pyperclip
 from asyncio import to_thread
 from textual.app import ComposeResult
 from textual.reactive import var
-from textual.containers import HorizontalGroup, VerticalGroup, VerticalScroll
+from textual.containers import HorizontalGroup, VerticalGroup
 from textual.widgets import Static, TextArea, Label, ContentSwitcher, Pretty
 from typing import Any
 from utils import get_cell_id, COLLAPSED_COLOR, EXPANDED_COLOR
-from textual.events import Key, DescendantBlur
+from textual.events import Key, DescendantBlur, Enter, Leave
 from notebook_kernel import NotebookKernel
 
 
@@ -238,11 +238,20 @@ class CodeCell(VerticalGroup):
                 self.call_after_refresh(self.code_area.focus)
 
     def _on_focus(self):
-        self.styles.border = "solid", "lightblue"
-        self.border_subtitle = self._language
+        self.styles.border_left = "solid", "lightblue"
+        # self.styles.border = "solid", "lightblue"
+        # self.border_subtitle = self._language
 
     def _on_blur(self):
         self.styles.border = None
+
+    def on_enter(self, event: Enter) -> None:
+        if self.notebook.last_focused != self:
+            self.styles.border_left = "solid", "grey"
+
+    def on_leave(self, event: Leave) -> None:
+        if self.notebook.last_focused != self:
+            self.styles.border_left = None
 
     def on_mount(self):
         self.output_collapse_btn.display = len(self.outputs) > 0

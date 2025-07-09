@@ -1,6 +1,6 @@
 from textual.app import ComposeResult
 from textual.widgets import Markdown, TextArea, ContentSwitcher, Label, Static
-from textual.events import Key, MouseDown
+from textual.events import Key, MouseDown, Enter, Leave
 from textual.containers import HorizontalGroup
 from typing import Any
 from time import time
@@ -75,12 +75,14 @@ class MarkdownCell(HorizontalGroup):
 
     def __init__(
         self,
+        notebook,
         idx: int =  0,
         source: str = "",
         metadata: dict[str, Any] = {},
         cell_id: str | None = None,
     ) -> None:
         super().__init__()
+        self.notebook = notebook
         self.idx = idx
         self.source = source
         self._metadata = metadata
@@ -104,12 +106,20 @@ class MarkdownCell(HorizontalGroup):
             yield self.markdown
 
     def _on_focus(self):
-        self.styles.border = "solid", "lightblue"
-        self.border_subtitle = "Markdown"
+        self.styles.border_left = "solid", "lightblue"
+        # self.styles.border = "solid", "lightblue"
+        # self.border_subtitle = "Markdown"
 
     def _on_blur(self):
         self.styles.border = None
-        # self.render_markdown()
+
+    def on_enter(self, event: Enter) -> None:
+        if self.notebook.last_focused != self:
+            self.styles.border_left = "solid", "grey"
+
+    def on_leave(self, event: Leave) -> None:
+        if self.notebook.last_focused != self:
+            self.styles.border_left = None
 
     async def on_key(self, event: Key) -> None:
         match event.key:
@@ -138,7 +148,7 @@ class MarkdownCell(HorizontalGroup):
         self.switcher.current = "markdown"
 
     @staticmethod
-    def from_nb(nb: dict[str, Any], idx: int) -> "MarkdownCell":
+    def from_nb(nb: dict[str, Any], notebook, idx: int) -> "MarkdownCell":
         assert nb
         for key in ["cell_type", "metadata", "source"]:
             assert key in nb
@@ -149,6 +159,7 @@ class MarkdownCell(HorizontalGroup):
             source = "".join(source)
 
         return MarkdownCell(
+            notebook=notebook,
             idx=idx,
             source=source,
             metadata=nb["metadata"],
@@ -173,6 +184,7 @@ class MarkdownCell(HorizontalGroup):
 
     def clone(self, connect: bool = True) -> "MarkdownCell":
         clone = MarkdownCell(
+            notebook=self.notebook,
             idx=self.idx,
             source = self.source,
             metadata = self._metadata,
