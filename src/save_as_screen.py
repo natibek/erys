@@ -7,22 +7,27 @@ from pathlib import Path
 from typing import Iterable
 from textual.validation import ValidationResult, Validator
 
-class NotebookName(Validator):  
+
+class NotebookName(Validator):
     def validate(self, value: str) -> ValidationResult:
         ext = Path(value).suffix
         if ext == ".ipynb":
             return self.success()
         else:
             return self.failure("File extension is not .ipynb.")
-    
+
+
 class FilteredDirectoryTree(DirectoryTree):
     def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
         return [path for path in paths if path.suffix == ".ipynb" or path.is_dir()]
 
+
 class SaveAsScreen(Screen[str | None]):
     def compose(self) -> ComposeResult:
         with Vertical(id="save-as"):
-            self.input = Input(placeholder="File Name", id="save-as-input", validators=[NotebookName()])
+            self.input = Input(
+                placeholder="File Name", id="save-as-input", validators=[NotebookName()]
+            )
             self.cur_dir = Static(f"Saving at: {Path.cwd()}", id="save-as-dir")
             self.dir_tree = FilteredDirectoryTree(Path.cwd(), id="save-as-dir-tree")
 

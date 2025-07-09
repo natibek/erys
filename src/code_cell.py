@@ -13,13 +13,14 @@ from notebook_kernel import NotebookKernel
 COLLAPSED_COLOR = "green"
 EXPANDED_COLOR = "white"
 
+
 class CodeCollapseLabel(Label):
     collapsed = var(False, init=False)
 
     def __init__(self, collapsed: bool = False, id: str = "") -> None:
         super().__init__("┃\n┃\n┃", id=id)
         self.collapsed = collapsed
-    
+
     def on_click(self) -> None:
         self.collapsed = not self.collapsed
 
@@ -43,14 +44,17 @@ class CodeCollapseLabel(Label):
         split = text.splitlines()
         if len(split) == 0:
             return ""
-            
+
         for line in split:
-            if line != "": return line
+            if line != "":
+                return line
+
 
 class CopyTextArea(TextArea):
     def on_key(self, event: Key):
         if event.key == "ctrl+c":
             pyperclip.copy(self.selected_text)
+
 
 class OutputCollapseLabel(Label):
     collapsed = var(False, init=False)
@@ -58,7 +62,7 @@ class OutputCollapseLabel(Label):
     def __init__(self, collapsed: bool = False, id: str = "") -> None:
         super().__init__("\n┃", id=id)
         self.collapsed = collapsed
-    
+
     def on_click(self) -> None:
         self.collapsed = not self.collapsed
 
@@ -72,10 +76,11 @@ class OutputCollapseLabel(Label):
             code_cell.output_switcher.current = "outputs"
             self.styles.color = EXPANDED_COLOR
 
+
 class RunLabel(Label):
     running: bool = var(False, init=False)
     glyphs = {False: "▶", True: "□"}
-    toolips= {False: "Run", True: "Interrupt"}
+    toolips = {False: "Run", True: "Interrupt"}
 
     def __init__(self, id: str = "") -> None:
         super().__init__(self.glyphs[False], id=id)
@@ -110,6 +115,7 @@ class CodeArea(CopyTextArea):
                 code_cell.focus()
                 event.stop()
 
+
 class OutputJson(HorizontalGroup):
     can_focus = True
 
@@ -138,6 +144,7 @@ class OutputJson(HorizontalGroup):
         if not self.app.focused or self.app.focused != self.output_text:
             self.switcher.current = "json"
 
+
 class OutputText(CopyTextArea):
     read_only = True
 
@@ -146,6 +153,7 @@ class OutputText(CopyTextArea):
 
     def _on_blur(self) -> None:
         self.styles.border = None
+
 
 class CodeCell(VerticalGroup):
     can_focus = True
@@ -183,7 +191,9 @@ class CodeCell(VerticalGroup):
     def compose(self) -> ComposeResult:
         with HorizontalGroup():
             with HorizontalGroup(id="code-sidebar"):
-                self.collapse_btn = CodeCollapseLabel(collapsed=self._collapsed, id="code-collapse-button").with_tooltip("Collapse Code")
+                self.collapse_btn = CodeCollapseLabel(
+                    collapsed=self._collapsed, id="code-collapse-button"
+                ).with_tooltip("Collapse Code")
                 yield self.collapse_btn
                 with VerticalGroup():
                     self.run_label = RunLabel(id="run-button")
@@ -193,19 +203,29 @@ class CodeCell(VerticalGroup):
                     )
                     yield self.exec_count_display
             self.code_area = CodeArea.code_editor(
-                self.source, language="python", id="code-editor", soft_wrap=True, theme="vscode_dark"
+                self.source,
+                language="python",
+                id="code-editor",
+                soft_wrap=True,
+                theme="vscode_dark",
             )
             self.collapsed_code = Static("Collapsed Code...", id="collapsed-code")
-            self.code_switcher = ContentSwitcher(id="collapse-code", initial="code-editor")
+            self.code_switcher = ContentSwitcher(
+                id="collapse-code", initial="code-editor"
+            )
             with self.code_switcher:
                 yield self.code_area
                 yield self.collapsed_code
 
         with HorizontalGroup(id="output-section"):
-            self.output_collapse_btn = OutputCollapseLabel(id="output-collapse-button").with_tooltip("Collapse Output")
+            self.output_collapse_btn = OutputCollapseLabel(
+                id="output-collapse-button"
+            ).with_tooltip("Collapse Output")
 
             self.outputs_group = VerticalGroup(id="outputs")
-            self.output_switcher = ContentSwitcher(id="collapse-outputs", initial="outputs")
+            self.output_switcher = ContentSwitcher(
+                id="collapse-outputs", initial="outputs"
+            )
             yield self.output_collapse_btn
             with self.output_switcher:
                 yield self.outputs_group
@@ -233,7 +253,7 @@ class CodeCell(VerticalGroup):
 
     async def action_run_cell(self) -> None:
         self.run_worker(self.run_cell)
-    
+
     def action_collapse(self) -> None:
         if not self.collapse_btn.collapsed or not self.output_collapse_btn.collapsed:
             self.collapse_btn.collapsed = True
@@ -241,7 +261,6 @@ class CodeCell(VerticalGroup):
         else:
             self.collapse_btn.collapsed = not self.collapse_btn.collapsed
             self.output_collapse_btn.collapsed = not self.output_collapse_btn.collapsed
-
 
     @staticmethod
     def from_nb(nb: dict[str, Any], notebook=None) -> "CodeCell":
@@ -334,7 +353,9 @@ class CodeCell(VerticalGroup):
 
     async def run_cell(self) -> None:
         if not self.notebook.notebook_kernel:
-            self.notify("No kernel available for notebook.", severity="error", timeout=8)
+            self.notify(
+                "No kernel available for notebook.", severity="error", timeout=8
+            )
             return
 
         kernel: NotebookKernel = self.notebook.notebook_kernel
@@ -352,7 +373,9 @@ class CodeCell(VerticalGroup):
 
     def interrupt_cell(self) -> None:
         if not self.notebook.notebook_kernel:
-            self.notify("No kernel available for notebook.", severity="error", timeout=8)
+            self.notify(
+                "No kernel available for notebook.", severity="error", timeout=8
+            )
             return
 
         kernel: NotebookKernel = self.notebook.notebook_kernel

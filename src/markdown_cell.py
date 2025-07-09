@@ -9,10 +9,12 @@ import pyperclip
 
 PLACEHOLDER = "*Empty markdown cell, double-click or press enter to edit.*"
 
+
 class CopyTextAreaMarkdown(TextArea):
     def on_key(self, event: Key):
         if event.key == "ctrl+c":
             pyperclip.copy(self.selected_text)
+
 
 class FocusMarkdown(Markdown):
     can_focus = True
@@ -64,7 +66,6 @@ class MarkdownCell(HorizontalGroup):
             match event.key:
                 case "enter":
                     self.switcher.current = "raw-text"
-
 
     def on_mouse_down(self, event: MouseDown) -> None:
         now = time()

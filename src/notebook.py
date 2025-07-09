@@ -21,6 +21,7 @@ class ButtonRow(HorizontalGroup):
 
 class Notebook(Container):
     """A Textual app to manage stopwatches."""
+
     last_focused = None
 
     BINDINGS = [
@@ -62,7 +63,9 @@ class Notebook(Container):
         # Ignore buttons
         if isinstance(event.widget, CodeCell) or isinstance(event.widget, MarkdownCell):
             self.last_focused = event.widget
-        elif isinstance(event.widget, OutputText) or isinstance(event.widget, OutputJson):
+        elif isinstance(event.widget, OutputText) or isinstance(
+            event.widget, OutputJson
+        ):
             self.last_focused = event.widget.parent.parent.parent.parent
         elif isinstance(event.widget, CodeArea):
             self.last_focused = event.widget.parent.parent.parent
@@ -75,7 +78,7 @@ class Notebook(Container):
     def on_key(self, event: Key) -> None:
         match event.key:
             case "tab" | "shift+tab":
-                event.prevent_default() 
+                event.prevent_default()
                 event.stop()
 
         if not isinstance(self.app.focused, TextArea):
@@ -86,7 +89,6 @@ class Notebook(Container):
                 case "down":
                     if self.last_focused and (next_cell := self.last_focused.next):
                         next_cell.focus_widget()
-
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
@@ -100,7 +102,9 @@ class Notebook(Container):
                 self.notebook_kernel.restart_kernel()
             case "run-all":
                 if not self.notebook_kernel:
-                    self.notify("No kernel available for notebook.", severity="error", timeout=8)
+                    self.notify(
+                        "No kernel available for notebook.", severity="error", timeout=8
+                    )
                     return
 
                 for child in self.cell_container.children:
@@ -136,7 +140,7 @@ class Notebook(Container):
         # TODO: Change the focused cell when one is deleted
         if self.last_focused:
             self.call_after_refresh(self.last_focused.remove)
-            # update the prev and next pointers 
+            # update the prev and next pointers
             # update the new focused cell
             last_focused = None
             if prev := self.last_focused.prev:

@@ -20,8 +20,10 @@ from notebook import Notebook
 from textual.events import Key
 import sys
 
+
 class QuitScreen(Screen):
     """Screen with a dialog to quit."""
+
     def compose(self) -> ComposeResult:
         yield Grid(
             Label("Are you sure you want to quit?", id="question"),
@@ -41,6 +43,7 @@ class QuitScreen(Screen):
             case "escape":
                 self.app.pop_screen()
                 event.stop()
+
 
 class DirectoryNav(DirectoryTree):
     BINDINGS = [
@@ -76,7 +79,11 @@ class TerminalNotebook(App):
     def __init__(self, paths: list[str]) -> None:
         super().__init__()
         self.theme = "dracula"
-        self.paths = [os.path.relpath(path, Path.cwd()) for path in paths if Path(path).is_file() and Path(path).suffix == ".ipynb"]
+        self.paths = [
+            os.path.relpath(path, Path.cwd())
+            for path in paths
+            if Path(path).is_file() and Path(path).suffix == ".ipynb"
+        ]
         self.cur_tab = len(paths)
         self.tab_to_nb_id_map: dict[str, int] = {}
 
@@ -123,10 +130,12 @@ class TerminalNotebook(App):
     ) -> None:
         if not os.path.exists(event.path):
             self.notify(f"{event.path} does not exist.", severity="error", timeout=8)
-            return 
+            return
 
         if event.path.suffix != ".ipynb":
-            self.notify(f"{event.path} is not a jupyter notebook.", severity="error", timeout=8)
+            self.notify(
+                f"{event.path} is not a jupyter notebook.", severity="error", timeout=8
+            )
             return
 
         self.open_notebook(event.path)
