@@ -3,7 +3,7 @@ import pyperclip
 from asyncio import to_thread
 from textual.app import ComposeResult
 from textual.reactive import var
-from textual.containers import HorizontalGroup, VerticalGroup
+from textual.containers import HorizontalGroup, VerticalGroup, VerticalScroll
 from textual.widgets import Static, TextArea, Label, ContentSwitcher, Pretty
 from typing import Any
 from utils import get_cell_id
@@ -162,6 +162,8 @@ class CodeCell(VerticalGroup):
     BINDINGS = [
         ("r", "run_cell", "Run Cell"),
         ("c", "collapse", "Collapse Cell"),
+        ("ctrl+up", "move_up", "Move cell up"),
+        ("ctrl+down", "move_down", "Move cell down")
     ]
 
     next = None
@@ -308,6 +310,19 @@ class CodeCell(VerticalGroup):
             "outputs": self.outputs,
             "source": self.source,
         }
+    
+    def clone(self) -> "CodeCell":
+        clone = CodeCell(
+            source=self.code_area.text,
+            outputs=self.outputs,
+            exec_count=self.exec_count,
+            metadata=self._metadata,
+            cell_id=self._cell_id,
+            notebook=self.notebook,
+        )
+        clone.next = self.next
+        clone.prev = self.prev
+        return clone
 
     def focus_widget(self):
         self.focus()

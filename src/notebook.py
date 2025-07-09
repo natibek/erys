@@ -27,6 +27,8 @@ class Notebook(Container):
     BINDINGS = [
         ("a", "add_cell_after", "Add cell after"),
         ("b", "add_cell_before", "Add cell before"),
+        ("ctrl+up", "move_up", "Move cell up"),
+        ("ctrl+down", "move_down", "Move cell down"),
         ("ctrl+d", "delete_cell", "Delete cell"),
         ("ctrl+s", "save", "Save"),
         ("ctrl+w", "save_as", "Save As"),
@@ -155,6 +157,55 @@ class Notebook(Container):
 
             if self.last_focused:
                 self.last_focused.focus_widget()
+
+    async def action_move_up(self) -> None:
+        if not self.last_focused: return 
+
+        if self.last_focused.prev:
+            clone = self.last_focused.clone()
+            prev = clone.prev
+
+            # removes the cell
+            prev.next = clone.next
+            if clone.next:
+                clone.next.prev = prev
+
+            if prev.prev:
+                prev.prev.next = clone
+
+            clone.prev = prev.prev
+            clone.next = prev
+            prev.prev = clone
+
+            self.last_focused.remove()
+            await self.cell_container.mount(clone, before=clone.next)
+            self.last_focused = clone
+            self.last_focused.focus_widget()
+
+    async def action_move_down(self) -> None:
+        if not self.last_focused: return 
+
+        if self.last_focused.next:
+            clone = self.last_focused.clone()
+            next = clone.next
+
+            # removes the cell
+            next.prev = clone.prev
+            if clone.prev:
+                clone.prev.next = next
+
+            if two_down := next.next:
+                two_down.prev = clone
+
+            # adds the cell
+            clone.prev = next
+            clone.next = next.next
+            next.next = clone
+
+            self.last_focused.remove()
+            await self.cell_container.mount(clone, after=clone.prev)
+            self.last_focused = clone
+            self.last_focused.focus_widget()
 
     def focus_notebook(self):
         if self.last_focused:

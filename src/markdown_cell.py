@@ -1,7 +1,7 @@
 from textual.app import ComposeResult
 from textual.widgets import Markdown, TextArea, ContentSwitcher
 from textual.events import Key, MouseDown
-from textual.containers import HorizontalGroup
+from textual.containers import HorizontalGroup, VerticalScroll
 from typing import Any
 from time import time
 from utils import get_cell_id, DOUBLE_CLICK_INTERVAL
@@ -115,6 +115,16 @@ class MarkdownCell(HorizontalGroup):
             "source": self.text_area.text,
             "id": self._cell_id,
         }
+
+    def clone(self) -> "MarkdownCell":
+        clone = MarkdownCell(
+            source = self.text_area.text,
+            metadata = self._metadata,
+            cell_id = self._cell_id,
+        )
+        clone.next = self.next
+        clone.prev = self.prev
+        return clone
 
     def show_markdown(self):
         self.switcher.current = "markdown"
