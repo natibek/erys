@@ -1,7 +1,7 @@
 from textual.app import ComposeResult
 from textual.widgets import Markdown, TextArea, ContentSwitcher, Label, Static
-from textual.events import Key, MouseDown, DescendantBlur
-from textual.containers import HorizontalGroup, VerticalScroll
+from textual.events import Key, MouseDown
+from textual.containers import HorizontalGroup
 from typing import Any
 from time import time
 from utils import get_cell_id, DOUBLE_CLICK_INTERVAL, COLLAPSED_COLOR, EXPANDED_COLOR
@@ -55,7 +55,6 @@ class CopyTextAreaMarkdown(TextArea):
 
 class FocusMarkdown(Markdown):
     can_focus = True
-    # TODO: FIX PLACEFOLDER
 
 class MarkdownCell(HorizontalGroup):
     can_focus = True
@@ -110,7 +109,10 @@ class MarkdownCell(HorizontalGroup):
                     self.switcher.current = "markdown"
 
                     self.source = self.text_area.text
-                    self.markdown.update(self.source)
+                    if not self.source:
+                        self.markdown.update(PLACEHOLDER)
+                    else:
+                        self.markdown.update(self.source)
                     self.focus()
         else:
             match event.key:

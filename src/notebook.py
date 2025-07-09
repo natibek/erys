@@ -175,8 +175,8 @@ class Notebook(Container):
             clone.next = prev
             prev.prev = clone
 
-            self.last_focused.remove()
             await self.cell_container.mount(clone, before=clone.next)
+            self.last_focused.remove()
             self.last_focused = clone
             self.last_focused.focus()
 
@@ -200,8 +200,8 @@ class Notebook(Container):
             clone.next = next.next
             next.next = clone
 
-            self.last_focused.remove()
             await self.cell_container.mount(clone, after=clone.prev)
+            self.last_focused.remove()
             self.last_focused = clone
             self.last_focused.focus()
 
