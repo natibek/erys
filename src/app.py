@@ -7,18 +7,42 @@ from textual.widgets import (
     Tabs,
     ContentSwitcher,
     Label,
+    Button,
 )
 from pathlib import Path
 import os.path
 
+from save_as_screen import SaveAsScreen
+from textual.screen import Screen
 from textual.reactive import reactive
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, Grid
 from notebook import Notebook
 from textual.events import Key
 import sys
 
+class QuitScreen(Screen):
+    """Screen with a dialog to quit."""
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Are you sure you want to quit?", id="question"),
+            Button("Quit", variant="error", id="quit"),
+            Button("Cancel", variant="primary", id="cancel"),
+            id="dialog",
+        )
 
-class Directory(DirectoryTree):
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "quit":
+            self.app.exit()
+        else:
+            self.app.pop_screen()
+
+    def on_key(self, event: Key) -> None:
+        match event.key:
+            case "escape":
+                self.app.pop_screen()
+                event.stop()
+
+class DirectoryNav(DirectoryTree):
     BINDINGS = [
         ("backspace", "back_dir", "Go back up directory"),
     ]
@@ -38,19 +62,21 @@ class TerminalNotebook(App):
     """A Textual app to manage stopwatches."""
 
     CSS_PATH = "styles.tcss"
-
+    SCREENS = {"quit_screen": QuitScreen, "save_as_screen": SaveAsScreen}
     BINDINGS = [
-        ("n", "add", "New Notebook"),
+        ("n", "new_notebook", "New Notebook"),
         ("ctrl+k", "close", "Close Notebook"),
         ("ctrl+l", "clear", "Clear Tabs"),
         ("d", "toggle_directory_tree", "Toggle Directory Tree"),
+        ("ctrl+q", "push_screen('quit_screen')", "Quit"),
     ]
+
     tab_id = reactive("")
 
     def __init__(self, paths: list[str]) -> None:
         super().__init__()
         self.theme = "dracula"
-        self.paths = [os.path.relpath(path, Path.cwd()) for path in paths]
+        self.paths = [os.path.relpath(path, Path.cwd()) for path in paths if Path(path).is_file() and Path(path).suffix == ".ipynb"]
         self.cur_tab = len(paths)
         self.tab_to_nb_id_map: dict[str, int] = {}
 
@@ -60,7 +86,7 @@ class TerminalNotebook(App):
         yield Header(show_clock=True, time_format="%I:%M:%S %p")
 
         with Horizontal():
-            self.dir_tree = Directory(Path.cwd(), id="file-tree")
+            self.dir_tree = DirectoryNav(Path.cwd(), id="file-tree")
             yield self.dir_tree
 
             with Vertical():
@@ -72,12 +98,15 @@ class TerminalNotebook(App):
                 with self.switcher:
                     for idx, path in enumerate(self.paths):
                         self.tab_to_nb_id_map[path] = f"tab{idx}"
-                        yield Notebook(path, f"tab{idx}")
+                        yield Notebook(path, f"tab{idx}", self)
 
         yield Footer()
 
     def on_mount(self) -> None:
         """Focus the tabs when the app starts."""
+        if len(self.paths) == 0:
+            self.action_new_notebook()
+
         self.tabs.focus()
         self.dir_tree.display = False
 
@@ -96,26 +125,11 @@ class TerminalNotebook(App):
             self.notify(f"{event.path} does not exist.", severity="error", timeout=8)
             return 
 
-        if os.path.splitext(event.path)[1] != ".ipynb":
+        if event.path.suffix != ".ipynb":
             self.notify(f"{event.path} is not a jupyter notebook.", severity="error", timeout=8)
             return
 
-        path = os.path.relpath(event.path, Path.cwd())
-
-        if path in self.tab_to_nb_id_map:
-            self.tabs.active = self.tab_to_nb_id_map[path]
-            return
-
-        tab_id = f"tab{self.cur_tab}"
-
-        new_notebook = Notebook(path, tab_id)
-        self.tabs.add_tab(Tab(path, id=tab_id))
-
-        self.tabs.active = tab_id
-
-        self.switcher.mount(new_notebook)
-        self.tab_to_nb_id_map[path] = tab_id
-        self.cur_tab += 1
+        self.open_notebook(event.path)
 
     def on_key(self, event: Key) -> None:
         match event.key:
@@ -138,12 +152,12 @@ class TerminalNotebook(App):
         else:
             self.set_focus(self.tabs)
 
-    def action_add(self) -> None:
+    def action_new_notebook(self) -> None:
         tab_id = f"tab{self.cur_tab}"
         self.tabs.add_tab(Tab(tab_id, id=tab_id))
         self.tab_to_nb_id_map[tab_id] = tab_id
 
-        new_notebook = Notebook("new_empty_terminal_notebook", tab_id)
+        new_notebook = Notebook("new_empty_terminal_notebook", tab_id, self)
         self.switcher.mount(new_notebook)
 
         self.tabs.active = tab_id
@@ -169,6 +183,24 @@ class TerminalNotebook(App):
             child.remove()
         self.tab_to_nb_id_map = {}
         self.switcher.current = None
+
+    def open_notebook(self, path: Path) -> None:
+        path = os.path.relpath(path, Path.cwd())
+
+        if path in self.tab_to_nb_id_map:
+            self.tabs.active = self.tab_to_nb_id_map[path]
+            return
+
+        tab_id = f"tab{self.cur_tab}"
+
+        new_notebook = Notebook(path, tab_id, self)
+        self.tabs.add_tab(Tab(path, id=tab_id))
+
+        self.tabs.active = tab_id
+
+        self.switcher.mount(new_notebook)
+        self.tab_to_nb_id_map[path] = tab_id
+        self.cur_tab += 1
 
 
 if __name__ == "__main__":

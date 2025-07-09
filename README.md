@@ -4,13 +4,17 @@ Shortcuts: https://shortcutworld.com/Jupyter-Notebook/win/Jupyter-Notebook_Short
 
 NB Format: https://nbformat.readthedocs.io/en/latest/format_description.html
 
-### Todo
-1. Save file
-1. Copy pasting cells
+### Todo Important Features
+1. Ask to save editted files on exit
+1. Copy pasting/moving cells
 1. Undo add/del cells
 1. Attaching to user kernel
-1. JSON output types
 1. Image output types
 1. Mime output types
+1. Execution time
+
+
+## Todo Coming Features
+1. Read config for themes and key bindings
 1. Raw cells
-1. UI when running cell (interrupt button and execution time)
+1. Save backup

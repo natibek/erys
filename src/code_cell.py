@@ -193,7 +193,7 @@ class CodeCell(VerticalGroup):
                     )
                     yield self.exec_count_display
             self.code_area = CodeArea.code_editor(
-                self.source, language="python", id="code-editor"
+                self.source, language="python", id="code-editor", soft_wrap=True, theme="vscode_dark"
             )
             self.collapsed_code = Static("Collapsed Code...", id="collapsed-code")
             self.code_switcher = ContentSwitcher(id="collapse-code", initial="code-editor")

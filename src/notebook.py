@@ -9,7 +9,6 @@ import json
 from markdown_cell import MarkdownCell, FocusMarkdown, CopyTextAreaMarkdown
 from code_cell import CodeCell, CodeArea, OutputText, OutputJson
 from notebook_kernel import NotebookKernel
-from save_as_screen import SaveAsScreen
 
 
 class ButtonRow(HorizontalGroup):
@@ -24,7 +23,6 @@ class Notebook(Container):
     """A Textual app to manage stopwatches."""
     last_focused = None
 
-    SCREENS = {"save_as_screen": SaveAsScreen}
     BINDINGS = [
         ("a", "add_cell_after", "Add cell after"),
         ("b", "add_cell_before", "Add cell before"),
@@ -33,11 +31,12 @@ class Notebook(Container):
         ("ctrl+w", "save_as", "Save As"),
     ]
 
-    def __init__(self, path: str, id: str) -> None:
+    def __init__(self, path: str, id: str, term_app) -> None:
         super().__init__(id=id)
 
         self.path = path
         self.notebook_kernel = NotebookKernel()
+        self.term_app = term_app
 
         self._metadata: dict[str, Any] | None = None
         self._nbformat: int = 4
@@ -114,16 +113,23 @@ class Notebook(Container):
     async def action_add_cell_before(self) -> None:
         await self.add_cell(CodeCell, "before")
 
-    def action_save_as(self) -> None:
-        self.app.switch_screen("save_as_screen")
+    def action_save_as(self) -> str:
+        def check_save_as(path: str | None) -> None:
+            if path:
+                self.path = path
+                self.save_notebook(path)
+                self.notify(f"{self.path} saved!")
+
+                self.term_app.open_notebook(path)
+
+        self.app.push_screen("save_as_screen", check_save_as)
 
     def action_save(self) -> None:
         if self.path == "new_empty_terminal_notebook":
             self.action_save_as()
         else:
-            nb = self.to_nb()
-            with open(self.path, "w") as nb_file:
-                json.dump(nb, nb_file)
+            self.save_notebook(self.path)
+            self.notify(f"{self.path} saved!")
 
     def action_delete_cell(self) -> None:
         # TODO: Move to cells
@@ -151,6 +157,11 @@ class Notebook(Container):
             self.call_after_refresh(self.last_focused.focus_widget)
         else:
             self.call_after_refresh(self.cell_container.focus)
+
+    def save_notebook(self, path):
+        nb = self.to_nb()
+        with open(path, "w") as nb_file:
+            json.dump(nb, nb_file)
 
     def load_notebook(self):
         with open(self.path, "r") as notebook_file:
