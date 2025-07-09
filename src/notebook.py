@@ -15,6 +15,10 @@ class ButtonRow(HorizontalGroup):
     def compose(self) -> ComposeResult:
         yield Button("➕ Code", id="add-code-cell")
         yield Button("➕ Markdown", id="add-markdown-cell")
+        yield Button("▲ Run Before", id="run-before")
+        yield Button("▼ Run After", id="run-after")
+        # yield Button("▶ ↑ Run Before", id="run-before")
+        # yield Button("▶ ↓ Run After", id="run-after")
         yield Button("▶ Run All", id="run-all")
         yield Button("🔁 Restart", id="restart-shell")
 
@@ -107,16 +111,36 @@ class Notebook(Container):
                 self.call_after_refresh(widget.open)
             case "restart-shell":
                 self.notebook_kernel.restart_kernel()
-            case "run-all":
+            case "run-all" | "run-after" | "run-before" if not self.notebook_kernel:
                 if not self.notebook_kernel:
                     self.notify(
                         "No kernel available for notebook.", severity="error", timeout=8
                     )
+                    self.last_focused.focus()
                     return
+            case "run-all":
+                for cell in self.cell_container.children:
+                    if isinstance(cell, CodeCell):
+                        await cell.run_cell()
+                self.last_focused.focus()
+            case "run-after":
+                if not self.last_focused: return
 
-                for child in self.cell_container.children:
-                    if isinstance(child, CodeCell):
-                        await child.run_cell()
+                cell = self.last_focused
+                while cell:
+                    if isinstance(cell, CodeCell):
+                        await cell.run_cell()
+                    cell = cell.next 
+                self.last_focused.focus()
+
+            case "run-before":
+                if not self.last_focused: return
+                for cell in self.cell_container.children:
+                    if cell == self.last_focused:
+                        break
+                    if isinstance(cell, CodeCell):
+                        await cell.run_cell()
+                self.last_focused.focus()
 
     async def action_add_cell_after(self) -> None:
         await self.add_cell(CodeCell, self.last_focused, "after")
@@ -249,7 +273,7 @@ class Notebook(Container):
                 if cell["cell_type"] == "code":
                     widget = CodeCell.from_nb(cell, self, idx)
                 elif cell["cell_type"] == "markdown":
-                    widget = MarkdownCell.from_nb(cell, idx)
+                    widget = MarkdownCell.from_nb(cell, self, idx)
 
                 if idx != 0:
                     prev.next = widget
@@ -268,10 +292,7 @@ class Notebook(Container):
         """
         kwargs = {position: relative_to}
 
-        if cell_type is CodeCell:
-            widget = cell_type(self, **cell_kwargs)
-        else:
-            widget = cell_type(**cell_kwargs)
+        widget = cell_type(self, **cell_kwargs)
 
         await self.cell_container.mount(widget, **kwargs)
         self.connect_widget(widget, position)
