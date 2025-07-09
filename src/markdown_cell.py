@@ -174,7 +174,7 @@ class MarkdownCell(HorizontalGroup):
     def clone(self, connect: bool = True) -> "MarkdownCell":
         clone = MarkdownCell(
             idx=self.idx,
-            source = self.text_area.text,
+            source = self.source,
             metadata = self._metadata,
             cell_id = self._cell_id,
         )
@@ -182,6 +182,9 @@ class MarkdownCell(HorizontalGroup):
             clone.next = self.next
             clone.prev = self.prev
         return clone
+
+    def set_new_id(self) -> None:
+        self._cell_id = get_cell_id()
 
     def show_markdown(self):
         self.switcher.current = "markdown"

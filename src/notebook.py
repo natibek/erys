@@ -24,7 +24,9 @@ class Notebook(Container):
 
     last_focused = None
     last_cut = None
-
+    running_idx = 0
+    delete_stack = []
+    
     BINDINGS = [
         ("a", "add_cell_after", "Add cell after"),
         ("b", "add_cell_before", "Add cell before"),
@@ -98,10 +100,10 @@ class Notebook(Container):
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
             case "add-code-cell":
-                widget = await self.add_cell(CodeCell, "after")
+                widget = await self.add_cell(CodeCell, self.last_focused, "after")
                 self.call_after_refresh(widget.open)
             case "add-markdown-cell":
-                widget = await self.add_cell(MarkdownCell, "after")
+                widget = await self.add_cell(MarkdownCell, self.last_focused, "after")
                 self.call_after_refresh(widget.open)
             case "restart-shell":
                 self.notebook_kernel.restart_kernel()
@@ -117,10 +119,10 @@ class Notebook(Container):
                         await child.run_cell()
 
     async def action_add_cell_after(self) -> None:
-        await self.add_cell(CodeCell, "after")
+        await self.add_cell(CodeCell, self.last_focused, "after")
 
     async def action_add_cell_before(self) -> None:
-        await self.add_cell(CodeCell, "before")
+        await self.add_cell(CodeCell, self.last_focused, "before")
 
     def action_save_as(self) -> str:
         def check_save_as(path: str | None) -> None:
@@ -146,13 +148,19 @@ class Notebook(Container):
         # update the prev and next pointers
         # update the new focused cell
         last_focused = None
+        position = "after"
         if prev := self.last_focused.prev:
             last_focused = prev
             prev.next = self.last_focused.next
+            position = "before"
 
         if next := self.last_focused.next:
             last_focused = next
             next.prev = self.last_focused.prev
+
+        # self.delete_stack.append(
+        #     (self.last_focused.clone(connect=False), position, last_focused.id)
+        # )
 
         self.call_after_refresh(self.last_focused.remove)
         self.last_focused = last_focused
@@ -163,16 +171,16 @@ class Notebook(Container):
     async def action_cut_cell(self) -> None:
         if not self.last_focused: return
 
-        self.last_cut = self.last_focused.clone()
-        self.last_cut.next = None
-        self.last_cut.prev = None
+        self.last_cut = self.last_focused.clone(connect=False)
         self.action_delete_cell()
 
     async def action_paste_cell(self) -> None:
         if not self.last_cut: return
 
-        await self.cell_container.mount(self.last_cut, after=self.last_focused)
-        self.connect_widget(self.last_cut)
+        widget = self.last_cut.clone()
+        widget.set_new_id()
+        await self.cell_container.mount(widget, after=self.last_focused)
+        self.connect_widget(widget)
 
     async def action_move_up(self) -> None:
         if not self.last_focused: return 
@@ -239,9 +247,9 @@ class Notebook(Container):
             content = json.load(notebook_file)
             for idx, cell in enumerate(content["cells"]):
                 if cell["cell_type"] == "code":
-                    widget = CodeCell.from_nb(cell, self)
+                    widget = CodeCell.from_nb(cell, self, idx)
                 elif cell["cell_type"] == "markdown":
-                    widget = MarkdownCell.from_nb(cell)
+                    widget = MarkdownCell.from_nb(cell, idx)
 
                 if idx != 0:
                     prev.next = widget
@@ -253,12 +261,12 @@ class Notebook(Container):
                 self.call_next(self.cell_container.mount, widget)
 
     async def add_cell(
-        self, cell_type: CodeCell | MarkdownCell, position: str = "after", **cell_kwargs
+        self, cell_type: CodeCell | MarkdownCell, relative_to: CodeCell | MarkdownCell | None, position: str = "after",  **cell_kwargs
     ) -> CodeCell | MarkdownCell:
         """
         Position is after or before.
         """
-        kwargs = {position: self.last_focused}
+        kwargs = {position: relative_to}
 
         if cell_type is CodeCell:
             widget = cell_type(self, **cell_kwargs)
@@ -267,6 +275,11 @@ class Notebook(Container):
 
         await self.cell_container.mount(widget, **kwargs)
         self.connect_widget(widget, position)
+
+        with open('output', "a") as f:
+            f.write(f'{widget}\t')
+            f.write(f'{widget.id}\n')
+            
         return widget
 
     def connect_widget(self, widget: CodeCell|MarkdownCell, position: str = "after"):
@@ -276,7 +289,6 @@ class Notebook(Container):
         """
         if not self.last_focused:
             self.last_focused = widget
-            self.last_focused.focus()
         elif position == "after":
             next = self.last_focused.next
             self.last_focused.next = widget
