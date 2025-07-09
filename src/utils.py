@@ -1,6 +1,8 @@
 import uuid
 
 DOUBLE_CLICK_INTERVAL = 0.4  # seconds
+COLLAPSED_COLOR = "green"
+EXPANDED_COLOR = "white"
 
 
 # https://github.com/jupyter/enhancement-proposals/blob/master/62-cell-id/cell-id.md

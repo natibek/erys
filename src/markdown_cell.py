@@ -1,14 +1,51 @@
 from textual.app import ComposeResult
-from textual.widgets import Markdown, TextArea, ContentSwitcher
-from textual.events import Key, MouseDown
+from textual.widgets import Markdown, TextArea, ContentSwitcher, Label, Static
+from textual.events import Key, MouseDown, DescendantBlur
 from textual.containers import HorizontalGroup, VerticalScroll
 from typing import Any
 from time import time
-from utils import get_cell_id, DOUBLE_CLICK_INTERVAL
+from utils import get_cell_id, DOUBLE_CLICK_INTERVAL, COLLAPSED_COLOR, EXPANDED_COLOR
+from textual.reactive import var
 import pyperclip
 
 PLACEHOLDER = "*Empty markdown cell, double-click or press enter to edit.*"
 
+class MarkdownCollapseLabel(Label):
+    collapsed = var(False, init=False)
+
+    def __init__(self, collapsed: bool = False, id: str = "") -> None:
+        super().__init__("\n┃\n┃", id=id)
+        self.collapsed = collapsed
+        self.prev_switcher = None
+
+    def on_click(self) -> None:
+        self.collapsed = not self.collapsed
+
+    def watch_collapsed(self, collapsed) -> None:
+        markdown_cell: MarkdownCell = self.parent
+
+        if collapsed:
+            placeholder = self.get_placeholder(markdown_cell.text_area.text)
+            markdown_cell.collapsed_markdown.update(f"{placeholder}...")
+
+            self.prev_switcher = markdown_cell.switcher.current
+            markdown_cell.switcher.current = "collapsed-markdown"
+
+            self.styles.color = COLLAPSED_COLOR
+            self.update("┃")
+        else:
+            markdown_cell.switcher.current = self.prev_switcher or "markdown"
+            self.styles.color = EXPANDED_COLOR
+            self.update("\n┃\n┃")
+
+    def get_placeholder(self, text: str) -> str:
+        split = text.splitlines()
+        if len(split) == 0:
+            return ""
+
+        for line in split:
+            if line != "":
+                return line
 
 class CopyTextAreaMarkdown(TextArea):
     def on_key(self, event: Key):
@@ -20,17 +57,15 @@ class FocusMarkdown(Markdown):
     can_focus = True
     # TODO: FIX PLACEFOLDER
 
-    def _on_focus(self):
-        self.styles.border = "solid", "lightblue"
-
-    def _on_blur(self):
-        self.styles.border = None
-
-
 class MarkdownCell(HorizontalGroup):
+    can_focus = True
     _last_click_time: float = 0.0
     next = None
     prev = None
+
+    BINDINGS = [
+        ("c", "collapse", "Collapse Cell"),
+    ]
 
     def __init__(
         self,
@@ -42,14 +77,29 @@ class MarkdownCell(HorizontalGroup):
         self.source = source
         self._metadata = metadata
         self._cell_id = cell_id or get_cell_id()
+        self._collapsed = metadata.get("collapsed", False)
 
     def compose(self) -> ComposeResult:
-        self.switcher = ContentSwitcher(initial="markdown", id="text-cell")
+        self.collapse_btn = MarkdownCollapseLabel(
+            collapsed=self._collapsed, id="markdown-collapse-button"
+        ).with_tooltip("Collapse")
+
+        yield self.collapse_btn
+
+        self.switcher = ContentSwitcher(initial="markdown", id="raw-text")
         with self.switcher:
+            self.collapsed_markdown = Static("Collapsed Markdown...", id="collapsed-markdown")
             self.text_area = CopyTextAreaMarkdown(self.source, id="raw-text")
             self.markdown = FocusMarkdown(self.source, id="markdown")
+            yield self.collapsed_markdown
             yield self.text_area
             yield self.markdown
+
+    def _on_focus(self):
+        self.styles.border = "solid", "lightblue"
+
+    def _on_blur(self):
+        self.styles.border = None
 
     def on_key(self, event: Key) -> None:
         if self.switcher.current == "raw-text":
@@ -60,12 +110,12 @@ class MarkdownCell(HorizontalGroup):
 
                     self.source = self.text_area.text
                     self.markdown.update(self.source)
-                    self.markdown.focus()
-
-        elif self.switcher.current == "markdown":
+                    self.focus()
+        else:
             match event.key:
                 case "enter":
                     self.switcher.current = "raw-text"
+                    self.text_area.focus()
 
     def on_mouse_down(self, event: MouseDown) -> None:
         now = time()
@@ -77,11 +127,11 @@ class MarkdownCell(HorizontalGroup):
         if self.switcher.current == "markdown":
             self.switcher.current = "raw-text"
 
+    def action_collapse(self) -> None:
+        self.collapse_btn.collapsed = not self.collapse_btn.collapsed
+
     def focus_widget(self) -> None:
-        if cur := self.switcher.current:
-            self.query_one(f"#{cur}").focus()
-        # else:
-        #     self.call_after_refresh(self.query_one(f"#markdown").focus)
+        self.focus()
 
     @staticmethod
     def from_nb(nb: dict[str, Any]) -> "MarkdownCell":

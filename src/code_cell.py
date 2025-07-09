@@ -6,19 +6,16 @@ from textual.reactive import var
 from textual.containers import HorizontalGroup, VerticalGroup, VerticalScroll
 from textual.widgets import Static, TextArea, Label, ContentSwitcher, Pretty
 from typing import Any
-from utils import get_cell_id
+from utils import get_cell_id, COLLAPSED_COLOR, EXPANDED_COLOR
 from textual.events import Key, DescendantBlur
 from notebook_kernel import NotebookKernel
-
-COLLAPSED_COLOR = "green"
-EXPANDED_COLOR = "white"
 
 
 class CodeCollapseLabel(Label):
     collapsed = var(False, init=False)
 
     def __init__(self, collapsed: bool = False, id: str = "") -> None:
-        super().__init__("┃\n┃\n┃", id=id)
+        super().__init__("\n┃\n┃", id=id)
         self.collapsed = collapsed
 
     def on_click(self) -> None:
@@ -33,12 +30,12 @@ class CodeCollapseLabel(Label):
             code_cell.code_switcher.current = "collapsed-code"
             code_cell.exec_count_display.display = False
             self.styles.color = COLLAPSED_COLOR
-            self.update("┃\n┃")
+            self.update("\n┃")
         else:
             code_cell.code_switcher.current = "code-editor"
             code_cell.exec_count_display.display = True
             self.styles.color = EXPANDED_COLOR
-            self.update("┃\n┃\n┃")
+            self.update("\n┃\n┃")
 
     def get_placeholder(self, text: str) -> str:
         split = text.splitlines()
@@ -162,9 +159,7 @@ class CodeCell(VerticalGroup):
     BINDINGS = [
         ("r", "run_cell", "Run Cell"),
         ("c", "collapse", "Collapse Cell"),
-        ("ctrl+up", "move_up", "Move cell up"),
-        ("ctrl+down", "move_down", "Move cell down")
-    ]
+   ]
 
     next = None
     prev = None

@@ -88,9 +88,11 @@ class Notebook(Container):
                 case "up":
                     if self.last_focused and (prev_cell := self.last_focused.prev):
                         prev_cell.focus_widget()
+                        # self.last_focused = prev_cell
                 case "down":
                     if self.last_focused and (next_cell := self.last_focused.next):
                         next_cell.focus_widget()
+                        # self.last_focused = next_cell
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         match event.button.id:
@@ -138,8 +140,6 @@ class Notebook(Container):
             self.notify(f"{self.path} saved!")
 
     def action_delete_cell(self) -> None:
-        # TODO: Move to cells
-        # TODO: Change the focused cell when one is deleted
         if self.last_focused:
             self.call_after_refresh(self.last_focused.remove)
             # update the prev and next pointers
