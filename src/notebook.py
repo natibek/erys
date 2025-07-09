@@ -23,12 +23,15 @@ class Notebook(Container):
     """A Textual app to manage stopwatches."""
 
     last_focused = None
+    last_cut = None
 
     BINDINGS = [
         ("a", "add_cell_after", "Add cell after"),
         ("b", "add_cell_before", "Add cell before"),
         ("ctrl+up", "move_up", "Move cell up"),
         ("ctrl+down", "move_down", "Move cell down"),
+        ("ctrl+x", "cut_cell", "Cut Cell"),
+        ("ctrl+v", "paste_cell", "Paste Cell"),
         ("ctrl+d", "delete_cell", "Delete cell"),
         ("ctrl+s", "save", "Save"),
         ("ctrl+w", "save_as", "Save As"),
@@ -138,23 +141,38 @@ class Notebook(Container):
             self.notify(f"{self.path} saved!")
 
     def action_delete_cell(self) -> None:
+        if not self.last_focused: return
+
+        # update the prev and next pointers
+        # update the new focused cell
+        last_focused = None
+        if prev := self.last_focused.prev:
+            last_focused = prev
+            prev.next = self.last_focused.next
+
+        if next := self.last_focused.next:
+            last_focused = next
+            next.prev = self.last_focused.prev
+
+        self.call_after_refresh(self.last_focused.remove)
+        self.last_focused = last_focused
+
         if self.last_focused:
-            self.call_after_refresh(self.last_focused.remove)
-            # update the prev and next pointers
-            # update the new focused cell
-            last_focused = None
-            if prev := self.last_focused.prev:
-                last_focused = prev
-                prev.next = self.last_focused.next
+            self.last_focused.focus()
 
-            if next := self.last_focused.next:
-                last_focused = next
-                next.prev = self.last_focused.prev
+    async def action_cut_cell(self) -> None:
+        if not self.last_focused: return
 
-            self.last_focused = last_focused
+        self.last_cut = self.last_focused.clone()
+        self.last_cut.next = None
+        self.last_cut.prev = None
+        self.action_delete_cell()
 
-            if self.last_focused:
-                self.last_focused.focus()
+    async def action_paste_cell(self) -> None:
+        if not self.last_cut: return
+
+        await self.cell_container.mount(self.last_cut, after=self.last_focused)
+        self.connect_widget(self.last_cut)
 
     async def action_move_up(self) -> None:
         if not self.last_focused: return 
@@ -248,7 +266,14 @@ class Notebook(Container):
             widget = cell_type(**cell_kwargs)
 
         await self.cell_container.mount(widget, **kwargs)
+        self.connect_widget(widget, position)
+        return widget
 
+    def connect_widget(self, widget: CodeCell|MarkdownCell, position: str = "after"):
+        """
+            Args:
+                position: Where in relation to the focused cell to connect the widget 'after', 'before'
+        """
         if not self.last_focused:
             self.last_focused = widget
             self.last_focused.focus()
@@ -269,8 +294,6 @@ class Notebook(Container):
 
             if prev:
                 prev.next = widget
-
-        return widget
 
     def to_nb(self) -> dict[str, Any]:
         """

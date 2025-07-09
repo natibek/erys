@@ -65,6 +65,7 @@ class SaveAsScreen(Screen[str | None]):
             case "backspace" if self.app.focused == self.dir_tree:
                 parent = Path(self.dir_tree.path).resolve().parent
                 self.dir_tree.path = parent
+                self.cur_dir.update(f"Saving at: {parent}")
             case "n" | "ctrl+k" | "ctrl+l" | "d":
                 event.stop()
 
