@@ -48,9 +48,16 @@ class MarkdownCollapseLabel(Label):
                 return line
 
 class CopyTextAreaMarkdown(TextArea):
-    def on_key(self, event: Key):
-        if event.key == "ctrl+c":
-            pyperclip.copy(self.selected_text)
+
+    def on_key(self, event: Key) -> None:
+        match event.key:
+            case "ctrl+c":
+                pyperclip.copy(self.selected_text)
+            case "escape" | "ctrl+r":
+                markdown_cell: MarkdownCell = self.parent.parent
+                markdown_cell.render_markdown()
+                markdown_cell.focus()
+                event.stop()
 
 
 class FocusMarkdown(Markdown):
@@ -68,11 +75,13 @@ class MarkdownCell(HorizontalGroup):
 
     def __init__(
         self,
+        idx: int =  0,
         source: str = "",
         metadata: dict[str, Any] = {},
         cell_id: str | None = None,
     ) -> None:
         super().__init__()
+        self.idx = idx
         self.source = source
         self._metadata = metadata
         self._cell_id = cell_id or get_cell_id()
@@ -88,7 +97,7 @@ class MarkdownCell(HorizontalGroup):
         self.switcher = ContentSwitcher(initial="markdown", id="raw-text")
         with self.switcher:
             self.collapsed_markdown = Static("Collapsed Markdown...", id="collapsed-markdown")
-            self.text_area = CopyTextAreaMarkdown(self.source, id="raw-text")
+            self.text_area = CopyTextAreaMarkdown.code_editor(self.source, id="raw-text", language="markdown", show_line_numbers=False)
             self.markdown = FocusMarkdown(self.source, id="markdown")
             yield self.collapsed_markdown
             yield self.text_area
@@ -100,32 +109,17 @@ class MarkdownCell(HorizontalGroup):
 
     def _on_blur(self):
         self.styles.border = None
+        # self.render_markdown()
 
-    def on_key(self, event: Key) -> None:
-        if self.switcher.current == "raw-text":
-            match event.key:
-                case "ctrl+r" | "escape":
-                    event.stop()
-                    self.switcher.current = "markdown"
-
-                    self.source = self.text_area.text
-                    if not self.source:
-                        self.markdown.update(PLACEHOLDER)
-                    else:
-                        self.markdown.update(self.source)
-                    self.focus()
-        else:
-            match event.key:
-                case "enter":
-                    self.switcher.current = "raw-text"
-                    self.text_area.focus()
+    async def on_key(self, event: Key) -> None:
+        match event.key:
+            case "enter":
+                await self.open()
 
     def on_mouse_down(self, event: MouseDown) -> None:
         now = time()
         if now - self._last_click_time <= DOUBLE_CLICK_INTERVAL:
             self.on_double_click(event)
-        else:
-            self.focus()
         self._last_click_time = now
 
     def on_double_click(self, event: MouseDown) -> None:
@@ -135,11 +129,16 @@ class MarkdownCell(HorizontalGroup):
     def action_collapse(self) -> None:
         self.collapse_btn.collapsed = not self.collapse_btn.collapsed
 
-    def focus_widget(self) -> None:
-        self.focus()
+    def render_markdown(self) -> None:
+        self.source = self.text_area.text
+        # if not self.source:
+        #     self.markdown.update(PLACEHOLDER)
+        # else:
+        self.markdown.update(self.source)
+        self.switcher.current = "markdown"
 
     @staticmethod
-    def from_nb(nb: dict[str, Any]) -> "MarkdownCell":
+    def from_nb(nb: dict[str, Any], idx: int) -> "MarkdownCell":
         assert nb
         for key in ["cell_type", "metadata", "source"]:
             assert key in nb
@@ -150,6 +149,7 @@ class MarkdownCell(HorizontalGroup):
             source = "".join(source)
 
         return MarkdownCell(
+            idx=idx,
             source=source,
             metadata=nb["metadata"],
             cell_id=nb.get("id"),
@@ -171,20 +171,21 @@ class MarkdownCell(HorizontalGroup):
             "id": self._cell_id,
         }
 
-    def clone(self) -> "MarkdownCell":
+    def clone(self, connect: bool = True) -> "MarkdownCell":
         clone = MarkdownCell(
+            idx=self.idx,
             source = self.text_area.text,
             metadata = self._metadata,
             cell_id = self._cell_id,
         )
-        clone.next = self.next
-        clone.prev = self.prev
+        if connect:
+            clone.next = self.next
+            clone.prev = self.prev
         return clone
 
     def show_markdown(self):
         self.switcher.current = "markdown"
 
     async def open(self):
-        if self.switcher.current == "markdown":
-            self.switcher.current = "raw-text"
+        self.switcher.current = "raw-text"
         self.call_after_refresh(self.text_area.focus)
