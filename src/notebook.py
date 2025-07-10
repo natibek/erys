@@ -27,7 +27,7 @@ class Notebook(Container):
     """A Textual app to manage stopwatches."""
 
     last_focused = None
-    last_cut = None
+    last_copied = None
     running_idx = 0
     delete_stack = []
     
@@ -36,6 +36,7 @@ class Notebook(Container):
         ("b", "add_cell_before", "Add cell before"),
         ("ctrl+up", "move_up", "Move cell up"),
         ("ctrl+down", "move_down", "Move cell down"),
+        ("ctrl+c", "copy_cell", "Copy Cell"),
         ("ctrl+x", "cut_cell", "Cut Cell"),
         ("ctrl+v", "paste_cell", "Paste Cell"),
         ("ctrl+d", "delete_cell", "Delete cell"),
@@ -192,16 +193,25 @@ class Notebook(Container):
         if self.last_focused:
             self.last_focused.focus()
 
-    async def action_cut_cell(self) -> None:
+    def action_copy_cell(self) -> None:
+        if not self.last_focused: return
+        self.last_copied = self.last_focused.to_nb()
+    
+    def action_cut_cell(self) -> None:
         if not self.last_focused: return
 
-        self.last_cut = self.last_focused.clone(connect=False)
+        self.last_copied = self.last_focused.to_nb()
         self.action_delete_cell()
 
     async def action_paste_cell(self) -> None:
-        if not self.last_cut: return
+        if not self.last_copied: return
 
-        widget = self.last_cut.clone()
+        match self.last_copied["cell_type"]:
+            case "markdown":
+                widget = MarkdownCell.from_nb(self.last_copied, self)
+            case "code":
+                widget = CodeCell.from_nb(self.last_copied, self)
+
         widget.set_new_id()
         await self.cell_container.mount(widget, after=self.last_focused)
         self.connect_widget(widget)

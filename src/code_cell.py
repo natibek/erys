@@ -167,7 +167,6 @@ class CodeCell(VerticalGroup):
     def __init__(
         self,
         notebook,
-        idx: int = 0,
         source: str = "",
         outputs: list[dict[str, Any]] = [],
         exec_count: int | None = None,
@@ -177,7 +176,6 @@ class CodeCell(VerticalGroup):
     ) -> None:
         super().__init__()
         self.notebook = notebook
-        self.idx = idx
 
         self.source = source
 
@@ -274,7 +272,7 @@ class CodeCell(VerticalGroup):
             self.output_collapse_btn.collapsed = not self.output_collapse_btn.collapsed
 
     @staticmethod
-    def from_nb(nb: dict[str, Any], notebook, idx: int) -> "CodeCell":
+    def from_nb(nb: dict[str, Any], notebook) -> "CodeCell":
         assert nb
         for key in ["cell_type", "execution_count", "metadata", "source", "outputs"]:
             assert key in nb
@@ -285,7 +283,6 @@ class CodeCell(VerticalGroup):
             source = "".join(source)
 
         return CodeCell(
-            idx=idx,
             source=source,
             outputs=nb["outputs"],
             exec_count=nb["execution_count"],
@@ -318,14 +315,13 @@ class CodeCell(VerticalGroup):
             "id": self._cell_id,
             "metadata": self._metadata,
             "outputs": self.outputs,
-            "source": self.source,
+            "source": self.code_area.text,
         }
 
     def clone(self, connect: bool = True) -> "CodeCell":
         clone = CodeCell(
             notebook=self.notebook,
-            idx=self.idx,
-            source=self.source,
+            source=self.code_area.text,
             outputs=self.outputs,
             exec_count=self.exec_count,
             metadata=self._metadata,

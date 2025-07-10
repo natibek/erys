@@ -76,14 +76,12 @@ class MarkdownCell(HorizontalGroup):
     def __init__(
         self,
         notebook,
-        idx: int =  0,
         source: str = "",
         metadata: dict[str, Any] = {},
         cell_id: str | None = None,
     ) -> None:
         super().__init__()
         self.notebook = notebook
-        self.idx = idx
         self.source = source
         self._metadata = metadata
         self._cell_id = cell_id or get_cell_id()
@@ -148,7 +146,7 @@ class MarkdownCell(HorizontalGroup):
         self.switcher.current = "markdown"
 
     @staticmethod
-    def from_nb(nb: dict[str, Any], notebook, idx: int) -> "MarkdownCell":
+    def from_nb(nb: dict[str, Any], notebook) -> "MarkdownCell":
         assert nb
         for key in ["cell_type", "metadata", "source"]:
             assert key in nb
@@ -160,7 +158,6 @@ class MarkdownCell(HorizontalGroup):
 
         return MarkdownCell(
             notebook=notebook,
-            idx=idx,
             source=source,
             metadata=nb["metadata"],
             cell_id=nb.get("id"),
@@ -185,8 +182,7 @@ class MarkdownCell(HorizontalGroup):
     def clone(self, connect: bool = True) -> "MarkdownCell":
         clone = MarkdownCell(
             notebook=self.notebook,
-            idx=self.idx,
-            source = self.source,
+            source = self.text_area.text,
             metadata = self._metadata,
             cell_id = self._cell_id,
         )
