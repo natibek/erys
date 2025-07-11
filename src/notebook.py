@@ -306,10 +306,6 @@ class Notebook(Container):
 
         await self.cell_container.mount(widget, **kwargs)
         self.connect_widget(widget, position)
-
-        with open('output', "a") as f:
-            f.write(f'{widget}\t')
-            f.write(f'{widget.id}\n')
             
         return widget
 
@@ -320,6 +316,7 @@ class Notebook(Container):
         """
         if not self.last_focused:
             self.last_focused = widget
+            self.last_focused.focus()
         elif position == "after":
             next = self.last_focused.next
             self.last_focused.next = widget

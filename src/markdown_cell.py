@@ -53,11 +53,19 @@ class CopyTextAreaMarkdown(TextArea):
         match event.key:
             case "ctrl+c":
                 pyperclip.copy(self.selected_text)
-            case "escape" | "ctrl+r":
+            case "escape":
                 markdown_cell: MarkdownCell = self.parent.parent
                 markdown_cell.render_markdown()
                 markdown_cell.focus()
                 event.stop()
+            case "ctrl+backslash":
+                markdown_cell: MarkdownCell = self.parent.parent
+                string_to_keep = self.get_text_range((0,0), self.cursor_location)
+                string_for_new_cell = self.text[len(string_to_keep):]
+                self.load_text(string_to_keep)
+                new_cell = MarkdownCell(markdown_cell.notebook, string_for_new_cell)
+                markdown_cell.notebook.cell_container.mount(new_cell, after=markdown_cell)
+                markdown_cell.notebook.connect_widget(new_cell)
 
 
 class FocusMarkdown(Markdown):
