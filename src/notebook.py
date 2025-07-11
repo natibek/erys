@@ -6,8 +6,9 @@ from textual.events import Key, DescendantFocus
 from typing import Any
 import json
 
-from markdown_cell import MarkdownCell, FocusMarkdown, CopyTextAreaMarkdown
+from markdown_cell import MarkdownCell, FocusMarkdown
 from code_cell import CodeCell, CodeArea, OutputText, OutputJson
+from cell import CopyTextArea
 from notebook_kernel import NotebookKernel
 
 
@@ -80,13 +81,13 @@ class Notebook(Container):
             event.widget, OutputJson
         ):
             self.last_focused = event.widget.parent.parent.parent.parent
-        elif isinstance(event.widget, CodeArea):
-            self.last_focused = event.widget.parent.parent.parent
+        # elif isinstance(event.widget, CodeArea):
+        #     self.last_focused = event.widget.parent.parent.parent
         elif any(
             isinstance(event.widget, widgetType)
-            for widgetType in [FocusMarkdown, CopyTextAreaMarkdown]
+            for widgetType in [FocusMarkdown, CopyTextArea, CodeArea]
         ):
-            self.last_focused = event.widget.parent.parent
+            self.last_focused = event.widget.parent.parent.parent
 
     def on_key(self, event: Key) -> None:
         match event.key:

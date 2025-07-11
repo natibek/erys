@@ -13,23 +13,20 @@ ButtonRow {
     margin-left: 2;
 }
 
-Markdown, TextArea {
+FocusMarkdown, CopyTextArea {
     min-height: 4;
     height: auto;
     max-height: 30;
 }
 
-Markdown {
-    padding: 1;
-}
-
 FocusMarkdown {
+    padding: 1;
     margin-left: 1;    
 }
 
-CopyTextAreaMarkdown {
+CopyTextArea {
     width: 1fr;
-    padding: 0;
+    padding: 0 1;
     margin: 0;
 }
 
@@ -77,12 +74,6 @@ OutputJson  {
     align: center middle;
 }
 
-CodeArea, CopyTextAreaMarkdown {
-    width: 1fr;
-    padding: 0 1;
-    margin: 0;
-}
-
 #run-button {
     height: 2;
     text-style: bold;
@@ -93,15 +84,6 @@ CodeArea, CopyTextAreaMarkdown {
 }
 
 #code-collapse-button {
-    height: auto;
-    text-style: bold;
-    border: none;
-    padding: 0;
-    margin: 0;
-}
-
-#markdown-collapse-button {
-    width: 5;
     height: auto;
     text-style: bold;
     border: none;
@@ -123,11 +105,11 @@ CodeArea, CopyTextAreaMarkdown {
     margin: 1 0 0 0;
 }
 
-#collapsed-output,  {
+#collapsed-output  {
     margin: 1 0 0 1;
 }
 
-#collapsed-code {
+#collapsed-display{
     margin: 1 0 0 1;
     padding: 0;
 }

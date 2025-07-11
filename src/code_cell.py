@@ -1,72 +1,14 @@
 from __future__ import annotations
-import pyperclip
 from asyncio import to_thread
 from textual.app import ComposeResult
 from textual.reactive import var
 from textual.containers import HorizontalGroup, VerticalGroup
-from textual.widgets import Static, TextArea, Label, ContentSwitcher, Pretty
+from textual.widgets import Static, Label, ContentSwitcher, Pretty
 from typing import Any
-from utils import get_cell_id, COLLAPSED_COLOR, EXPANDED_COLOR
-from textual.events import Key, DescendantBlur, Enter, Leave, MouseDown
+from utils import COLLAPSED_COLOR, EXPANDED_COLOR
+from textual.events import Key, DescendantBlur
 from notebook_kernel import NotebookKernel
-
-
-class CodeCollapseLabel(Label):
-    collapsed = var(False, init=False)
-
-    def __init__(self, collapsed: bool = False, id: str = "") -> None:
-        super().__init__("\n┃\n┃", id=id)
-        self.collapsed = collapsed
-
-    def on_click(self) -> None:
-        self.collapsed = not self.collapsed
-
-    def watch_collapsed(self, collapsed) -> None:
-        code_cell: CodeCell = self.parent.parent.parent
-
-        if collapsed:
-            placeholder = self.get_placeholder(code_cell.code_area.text)
-            code_cell.collapsed_code.update(f"{placeholder}...")
-            code_cell.code_switcher.current = "collapsed-code"
-            code_cell.exec_count_display.display = False
-            self.styles.color = COLLAPSED_COLOR
-            self.update("\n┃")
-        else:
-            code_cell.code_switcher.current = "code-editor"
-            code_cell.exec_count_display.display = True
-            self.styles.color = EXPANDED_COLOR
-            self.update("\n┃\n┃")
-
-    def get_placeholder(self, text: str) -> str:
-        split = text.splitlines()
-        if len(split) == 0:
-            return ""
-
-        for line in split:
-            if line != "":
-                return line
-
-
-class CopyTextArea(TextArea):
-    BINDINGS = [
-        ("ctrl+backslash", "split_cell", "Split Cell")
-    ]
-
-    def on_key(self, event: Key):
-        match event.key:
-            case "ctrl+c":
-                pyperclip.copy(self.selected_text)
-    
-    def action_split_cell(self):
-        code_cell: CodeCell = self.parent.parent.parent
-        string_to_keep = self.get_text_range((0,0), self.cursor_location)
-        string_for_new_cell = self.text[len(string_to_keep):]
-        self.load_text(string_to_keep)
-        new_cell = CodeCell(code_cell.notebook, string_for_new_cell)
-        code_cell.notebook.cell_container.mount(new_cell, after=code_cell)
-        code_cell.notebook.connect_widget(new_cell)
-
-
+from cell import CopyTextArea, Cell
 
 class OutputCollapseLabel(Label):
     collapsed = var(False, init=False)
@@ -121,12 +63,7 @@ class CodeArea(CopyTextArea):
             event.prevent_default()
             return
 
-        match event.key:
-            case "escape":
-                code_cell: CodeCell = self.parent.parent.parent
-                code_cell.focus()
-                event.stop()
-
+        super().on_key(event)
 
 class OutputJson(HorizontalGroup):
     can_focus = True
@@ -167,20 +104,14 @@ class OutputText(CopyTextArea):
         self.styles.border = None
 
 
-class CodeCell(VerticalGroup):
-    can_focus = True
-    exec_count: int | None = var(None)
-    merge_select: bool = var(False, init=False)
-
+class CodeCell(Cell):
     BINDINGS = [
         ("r", "run_cell", "Run Cell"),
         ("c", "collapse", "Collapse Cell"),
         ("ctrl+pageup", "join_above", "Join with Above"),
         ("ctrl+pagedown", "join_below", "Join with Below"),
    ]
-
-    next = None
-    prev = None
+    exec_count: int | None = var(None)
     cell_type = "code"
 
     def __init__(
@@ -193,25 +124,15 @@ class CodeCell(VerticalGroup):
         cell_id: str | None = None,
         language: str = "Python"
     ) -> None:
-        super().__init__()
-        self.notebook = notebook
-
-        self.source = source
-
+        super().__init__(notebook, source, metadata, cell_id)
         self.outputs: list[dict[str, Any]] = outputs
         self.exec_count = exec_count
-
-        self._metadata = metadata
-        self._cell_id = cell_id or get_cell_id()
-        self._collapsed = metadata.get("collapsed", False)
         self._language = language
+        self.switcher.current = ""
 
     def compose(self) -> ComposeResult:
         with HorizontalGroup():
             with HorizontalGroup(id="code-sidebar"):
-                self.collapse_btn = CodeCollapseLabel(
-                    collapsed=self._collapsed, id="code-collapse-button"
-                ).with_tooltip("Collapse Code")
                 yield self.collapse_btn
                 with VerticalGroup():
                     self.run_label = RunLabel(id="run-button")
@@ -220,20 +141,16 @@ class CodeCell(VerticalGroup):
                         f"[{self.exec_count or ' '}]", id="exec-count"
                     )
                     yield self.exec_count_display
-            self.code_area = CodeArea.code_editor(
+            self.input_text = CodeArea.code_editor(
                 self.source,
                 language=self._language.lower(),
-                id="code-editor",
+                id="text",
                 soft_wrap=True,
                 theme="vscode_dark",
             )
-            self.collapsed_code = Static("Collapsed Code...", id="collapsed-code")
-            self.code_switcher = ContentSwitcher(
-                id="collapse-code", initial="code-editor"
-            )
-            with self.code_switcher:
-                yield self.code_area
-                yield self.collapsed_code
+            with self.switcher:
+                yield self.input_text
+                yield self.collapsed_display
 
         with HorizontalGroup(id="output-section"):
             self.output_collapse_btn = OutputCollapseLabel(
@@ -249,50 +166,13 @@ class CodeCell(VerticalGroup):
                 yield self.outputs_group
                 yield Static("Outputs are collapsed...", id="collapsed-output")
 
-    async def on_key(self, event: Key) -> None:
-        match event.key:
-            case "enter":
-                await self.open()
-
-    def _on_focus(self):
-        self.styles.border_left = "solid", "lightblue"
-        # self.styles.border = "solid", "lightblue"
-        # self.border_subtitle = self._language
-
-    def _on_blur(self):
-        if not self.merge_select:
-            self.styles.border = None
-
-    def on_enter(self, event: Enter) -> None:
-        if self.merge_select: return
-
-        if self.notebook.last_focused != self:
-            self.styles.border_left = "solid", "grey"
-
-    def on_leave(self, event: Leave) -> None:
-        if self.merge_select: return
-
-        if self.notebook.last_focused != self:
-            self.styles.border_left = None
-
     def on_mount(self):
         self.output_collapse_btn.display = len(self.outputs) > 0
         self.call_after_refresh(self.update_outputs, self.outputs)
 
-    def on_mouse_down(self, event: MouseDown) -> None:
-        if event.ctrl:
-            if not self.merge_select:
-                self.notebook._merge_list.append(self)
-            else:
-                self.notebook._merge_list.remove(self)
-
-            self.merge_select = not self.merge_select
-
-    def watch_merge_select(self, selected: bool) -> None:
-        if selected:
-            self.styles.border_left = "solid", "yellow"
-        else:
-            self.styles.border_left = None
+    def escape(self, event: Key):
+        self.focus()
+        event.stop()
 
     def watch_exec_count(self, new: int | None) -> None:
         self.call_after_refresh(
@@ -310,32 +190,8 @@ class CodeCell(VerticalGroup):
             self.collapse_btn.collapsed = not self.collapse_btn.collapsed
             self.output_collapse_btn.collapsed = not self.output_collapse_btn.collapsed 
 
-    def action_join_above(self) -> None:
-        if self.prev:
-            self.prev.merge_cells_with_self([self])
-
-    def action_join_below(self) -> None:
-        if self.next:
-            self.merge_cells_with_self([self.next])
-
-    def disconnect(self): #-> tuple[str]:
-        """Remove self from the linked list of cells. Update the pointers of the surrounding cells 
-        to point to each other.
-
-        Returns: The next cell to focus on and there was relative to the removed cell
-        """
-        last_focused = None
-        position = "after"
-        if prev := self.prev:
-            last_focused = prev
-            prev.next = self.next
-            position = "before"
-
-        if next := self.next:
-            last_focused = next
-            next.prev = self.prev
-
-        return last_focused, position
+    async def open(self):
+        self.call_after_refresh(self.input_text.focus)
 
     @staticmethod
     def from_nb(nb: dict[str, Any], notebook) -> "CodeCell":
@@ -357,7 +213,7 @@ class CodeCell(VerticalGroup):
             notebook=notebook,
         )
 
-    def to_nb(self):
+    def to_nb(self) -> dict[str, Any]:
         """
         Format for code cell
             {
@@ -381,13 +237,16 @@ class CodeCell(VerticalGroup):
             "id": self._cell_id,
             "metadata": self._metadata,
             "outputs": self.outputs,
-            "source": self.code_area.text,
+            "source": self.input_text.text,
         }
+
+    def create_cell(self, source) -> "CodeCell":
+        return CodeCell(self.notebook, source)
 
     def clone(self, connect: bool = True) -> "CodeCell":
         clone = CodeCell(
             notebook=self.notebook,
-            source=self.code_area.text,
+            source=self.input_text.text,
             outputs=self.outputs,
             exec_count=self.exec_count,
             metadata=self._metadata,
@@ -399,12 +258,6 @@ class CodeCell(VerticalGroup):
             clone.prev = self.prev
 
         return clone
-
-    def set_new_id(self) -> None:
-        self._cell_id = get_cell_id()
-
-    async def open(self):
-        self.call_after_refresh(self.code_area.focus)
 
     async def update_outputs(self, outputs: list[dict[str, Any]]) -> None:
         try:
@@ -453,7 +306,7 @@ class CodeCell(VerticalGroup):
 
         kernel: NotebookKernel = self.notebook.notebook_kernel
 
-        self.source = self.code_area.text
+        self.source = self.input_text.text
         if not self.source:
             return
 
@@ -473,27 +326,3 @@ class CodeCell(VerticalGroup):
 
         kernel: NotebookKernel = self.notebook.notebook_kernel
         kernel.interrupt_kernel()
-    
-    def merge_cells_with_self(self, cells) -> None:
-        """Merge self with a list of cells by combining content in text areas into self. Should be
-        called by the first selected cell in the the cells to merge. The resulting type will be 
-        self.
-        
-        Args:
-            cells: List of MarkdownCell | CodeCell to merge with self.
-        """
-        source = self.code_area.text
-
-        for cell in cells:
-            source += "\n"
-            match cell.cell_type:
-                case "code":
-                    source += cell.code_area.text
-                case "markdown":
-                    source += cell.text_area.text
-            cell.disconnect()
-            cell.remove()
-        self.code_area.load_text(source)
-        self.focus()
-
-
