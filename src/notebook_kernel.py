@@ -137,6 +137,8 @@ class NotebookKernel:
     def restart_kernel(self) -> None:
         self.kernel_client.stop_channels()
         self.kernel_manager.restart_kernel()
+        self.kernel_client: BlockingKernelClient = self.kernel_manager.client()
+        self.kernel_client.start_channels()
 
     def shutdown_kernel(self) -> None:
         self.kernel_client.stop_channels()
