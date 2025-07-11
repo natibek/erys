@@ -76,10 +76,12 @@ class FocusMarkdown(Markdown):
     can_focus = True
 
 class MarkdownCell(HorizontalGroup):
+    merge_select = var(False, init=False)
     can_focus = True
     _last_click_time: float = 0.0
     next = None
     prev = None
+    cell_type = "markdown"
 
     BINDINGS = [
         ("c", "collapse", "Collapse Cell"),
@@ -119,15 +121,20 @@ class MarkdownCell(HorizontalGroup):
         self.styles.border_left = "solid", "lightblue"
         # self.styles.border = "solid", "lightblue"
         # self.border_subtitle = "Markdown"
-
+    
     def _on_blur(self):
-        self.styles.border = None
+        if not self.merge_select:
+            self.styles.border = None
 
     def on_enter(self, event: Enter) -> None:
+        if self.merge_select: return
+
         if self.notebook.last_focused != self:
             self.styles.border_left = "solid", "grey"
 
     def on_leave(self, event: Leave) -> None:
+        if self.merge_select: return
+
         if self.notebook.last_focused != self:
             self.styles.border_left = None
 
@@ -138,7 +145,14 @@ class MarkdownCell(HorizontalGroup):
 
     def on_mouse_down(self, event: MouseDown) -> None:
         now = time()
-        if now - self._last_click_time <= DOUBLE_CLICK_INTERVAL:
+        if event.ctrl:
+            if not self.merge_select:
+                self.notebook._merge_list.append(self)
+            else:
+                self.notebook._merge_list.remove(self)
+
+            self.merge_select = not self.merge_select
+        elif now - self._last_click_time <= DOUBLE_CLICK_INTERVAL:
             self.on_double_click(event)
         self._last_click_time = now
 
@@ -149,6 +163,12 @@ class MarkdownCell(HorizontalGroup):
     def action_collapse(self) -> None:
         self.collapse_btn.collapsed = not self.collapse_btn.collapsed
 
+    def watch_merge_select(self, selected: bool) -> None:
+        if selected:
+            self.styles.border_left = "solid", "yellow"
+        else:
+            self.styles.border_left = None
+
     def render_markdown(self) -> None:
         self.source = self.text_area.text
         # if not self.source:
@@ -156,6 +176,25 @@ class MarkdownCell(HorizontalGroup):
         # else:
         self.markdown.update(self.source)
         self.switcher.current = "markdown"
+
+    def disconnect(self): #-> tuple[str]:
+        """Remove self from the linked list of cells. Update the pointers of the surrounding cells 
+        to point to each other.
+
+        Returns: The next cell to focus on and there was relative to the removed cell
+        """
+        last_focused = None
+        position = "after"
+        if prev := self.prev:
+            last_focused = prev
+            prev.next = self.next
+            position = "before"
+
+        if next := self.next:
+            last_focused = next
+            next.prev = self.prev
+
+        return last_focused, position
 
     @staticmethod
     def from_nb(nb: dict[str, Any], notebook) -> "MarkdownCell":
@@ -212,3 +251,25 @@ class MarkdownCell(HorizontalGroup):
     async def open(self):
         self.switcher.current = "raw-text"
         self.call_after_refresh(self.text_area.focus)
+
+    def merge_cells_with_self(self, cells) -> None:
+        """Merge self with a list of cells by combining content in text areas into self. Should be
+        called by the first selected cell in the the cells to merge. The resulting type will be 
+        self.
+        
+        Args:
+            cells: List of MarkdownCell | CodeCell to merge with self.
+        """
+        source = self.text_area.text
+
+        for cell in cells:
+            source += "\n"
+            match cell.cell_type:
+                case "code":
+                    source += cell.code_area.text
+                case "markdown":
+                    source += cell.text_area.text
+            cell. disconnect()
+            cell.remove()
+        self.text_area.load_text(source)
+        self.focus()

@@ -7,7 +7,7 @@ from textual.containers import HorizontalGroup, VerticalGroup
 from textual.widgets import Static, TextArea, Label, ContentSwitcher, Pretty
 from typing import Any
 from utils import get_cell_id, COLLAPSED_COLOR, EXPANDED_COLOR
-from textual.events import Key, DescendantBlur, Enter, Leave
+from textual.events import Key, DescendantBlur, Enter, Leave, MouseDown
 from notebook_kernel import NotebookKernel
 
 
@@ -170,6 +170,7 @@ class OutputText(CopyTextArea):
 class CodeCell(VerticalGroup):
     can_focus = True
     exec_count: int | None = var(None)
+    merge_select: bool = var(False, init=False)
 
     BINDINGS = [
         ("r", "run_cell", "Run Cell"),
@@ -178,6 +179,7 @@ class CodeCell(VerticalGroup):
 
     next = None
     prev = None
+    cell_type = "code"
 
     def __init__(
         self,
@@ -245,10 +247,10 @@ class CodeCell(VerticalGroup):
                 yield self.outputs_group
                 yield Static("Outputs are collapsed...", id="collapsed-output")
 
-    def on_key(self, event: Key) -> None:
+    async def on_key(self, event: Key) -> None:
         match event.key:
             case "enter":
-                self.call_after_refresh(self.code_area.focus)
+                await self.open()
 
     def _on_focus(self):
         self.styles.border_left = "solid", "lightblue"
@@ -256,19 +258,39 @@ class CodeCell(VerticalGroup):
         # self.border_subtitle = self._language
 
     def _on_blur(self):
-        self.styles.border = None
+        if not self.merge_select:
+            self.styles.border = None
 
     def on_enter(self, event: Enter) -> None:
+        if self.merge_select: return
+
         if self.notebook.last_focused != self:
             self.styles.border_left = "solid", "grey"
 
     def on_leave(self, event: Leave) -> None:
+        if self.merge_select: return
+
         if self.notebook.last_focused != self:
             self.styles.border_left = None
 
     def on_mount(self):
         self.output_collapse_btn.display = len(self.outputs) > 0
         self.call_after_refresh(self.update_outputs, self.outputs)
+
+    def on_mouse_down(self, event: MouseDown) -> None:
+        if event.ctrl:
+            if not self.merge_select:
+                self.notebook._merge_list.append(self)
+            else:
+                self.notebook._merge_list.remove(self)
+
+            self.merge_select = not self.merge_select
+
+    def watch_merge_select(self, selected: bool) -> None:
+        if selected:
+            self.styles.border_left = "solid", "yellow"
+        else:
+            self.styles.border_left = None
 
     def watch_exec_count(self, new: int | None) -> None:
         self.call_after_refresh(
@@ -285,6 +307,25 @@ class CodeCell(VerticalGroup):
         else:
             self.collapse_btn.collapsed = not self.collapse_btn.collapsed
             self.output_collapse_btn.collapsed = not self.output_collapse_btn.collapsed
+
+    def disconnect(self): #-> tuple[str]:
+        """Remove self from the linked list of cells. Update the pointers of the surrounding cells 
+        to point to each other.
+
+        Returns: The next cell to focus on and there was relative to the removed cell
+        """
+        last_focused = None
+        position = "after"
+        if prev := self.prev:
+            last_focused = prev
+            prev.next = self.next
+            position = "before"
+
+        if next := self.next:
+            last_focused = next
+            next.prev = self.prev
+
+        return last_focused, position
 
     @staticmethod
     def from_nb(nb: dict[str, Any], notebook) -> "CodeCell":
@@ -422,3 +463,27 @@ class CodeCell(VerticalGroup):
 
         kernel: NotebookKernel = self.notebook.notebook_kernel
         kernel.interrupt_kernel()
+    
+    def merge_cells_with_self(self, cells) -> None:
+        """Merge self with a list of cells by combining content in text areas into self. Should be
+        called by the first selected cell in the the cells to merge. The resulting type will be 
+        self.
+        
+        Args:
+            cells: List of MarkdownCell | CodeCell to merge with self.
+        """
+        source = self.code_area.text
+
+        for cell in cells:
+            source += "\n"
+            match cell.cell_type:
+                case "code":
+                    source += cell.code_area.text
+                case "markdown":
+                    source += cell.text_area.text
+            cell.disconnect()
+            cell.remove()
+        self.code_area.load_text(source)
+        self.focus()
+
+

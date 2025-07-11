@@ -28,18 +28,19 @@ class Notebook(Container):
 
     last_focused = None
     last_copied = None
-    running_idx = 0
-    delete_stack = []
+    _delete_stack = []
+    _merge_list: list[CodeCell | MarkdownCell] = []
     
     BINDINGS = [
-        ("a", "add_cell_after", "Add cell after"),
-        ("b", "add_cell_before", "Add cell before"),
-        ("ctrl+up", "move_up", "Move cell up"),
-        ("ctrl+down", "move_down", "Move cell down"),
+        ("a", "add_cell_after", "Add Cell After"),
+        ("b", "add_cell_before", "Add Cell Before"),
+        ("ctrl+up", "move_up", "Move Cell Up"),
+        ("ctrl+down", "move_down", "Move Cell Down"),
+        ("M", "merge_cells", "Merge Cells"),
         ("ctrl+c", "copy_cell", "Copy Cell"),
         ("ctrl+x", "cut_cell", "Cut Cell"),
         ("ctrl+v", "paste_cell", "Paste Cell"),
-        ("ctrl+d", "delete_cell", "Delete cell"),
+        ("ctrl+d", "delete_cell", "Delete Cell"),
         ("ctrl+s", "save", "Save"),
         ("ctrl+w", "save_as", "Save As"),
     ]
@@ -61,7 +62,7 @@ class Notebook(Container):
         self.cell_container = VerticalScroll(id="cell-container")
         yield self.cell_container
 
-    def on_mount(self):
+    def on_mount(self) -> None:
         if self.path != "new_empty_terminal_notebook":
             self.call_after_refresh(self.load_notebook)
 
@@ -92,6 +93,11 @@ class Notebook(Container):
             case "tab" | "shift+tab":
                 event.prevent_default()
                 event.stop()
+            case "escape":
+                for cell in self._merge_list:
+                    cell.merge_select = False
+
+                self._merge_list = []
 
         if not isinstance(self.app.focused, TextArea):
             match event.key:
@@ -169,20 +175,9 @@ class Notebook(Container):
 
     def action_delete_cell(self) -> None:
         if not self.last_focused: return
-
         # update the prev and next pointers
         # update the new focused cell
-        last_focused = None
-        position = "after"
-        if prev := self.last_focused.prev:
-            last_focused = prev
-            prev.next = self.last_focused.next
-            position = "before"
-
-        if next := self.last_focused.next:
-            last_focused = next
-            next.prev = self.last_focused.prev
-
+        last_focused, position = self.last_focused.disconnect()
         # self.delete_stack.append(
         #     (self.last_focused.clone(connect=False), position, last_focused.id)
         # )
@@ -265,18 +260,29 @@ class Notebook(Container):
             self.last_focused = clone
             self.last_focused.focus()
 
-    def focus_notebook(self):
+    def action_merge_cells(self) -> None:
+        """Merge selected cells by combining content in text areas into the one selected. Should be
+        called by the first selected cell in the the cells to merge. The resulting type will be 
+        self.
+        """
+        if len(self._merge_list) < 2: return
+        target: CodeCell | MarkdownCell = self._merge_list[0]
+        target.merge_cells_with_self(self._merge_list[1:])
+        target.merge_select = False
+        self._merge_list = []
+
+    def focus_notebook(self) -> None:
         if self.last_focused:
             self.call_after_refresh(self.last_focused.focus)
         else:
             self.call_after_refresh(self.cell_container.focus)
 
-    def save_notebook(self, path):
+    def save_notebook(self, path) -> None:
         nb = self.to_nb()
         with open(path, "w") as nb_file:
             json.dump(nb, nb_file)
 
-    def load_notebook(self):
+    def load_notebook(self) -> None:
         with open(self.path, "r") as notebook_file:
             content = json.load(notebook_file)
             for idx, cell in enumerate(content["cells"]):
@@ -309,7 +315,7 @@ class Notebook(Container):
             
         return widget
 
-    def connect_widget(self, widget: CodeCell|MarkdownCell, position: str = "after"):
+    def connect_widget(self, widget: CodeCell|MarkdownCell, position: str = "after") -> None:
         """
             Args:
                 position: Where in relation to the focused cell to connect the widget 'after', 'before'

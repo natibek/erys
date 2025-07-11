@@ -11,7 +11,9 @@ NB Format: https://nbformat.readthedocs.io/en/latest/format_description.html
 1. Execution time
 1. Print Ansi Escape errors
 1. Join with prev/next cell
+1. Switch between markdown and code cell
 1. Floating buttons
+1. Refactor
 
 #### Rendering
 1. Image output types
