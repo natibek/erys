@@ -175,6 +175,8 @@ class CodeCell(VerticalGroup):
     BINDINGS = [
         ("r", "run_cell", "Run Cell"),
         ("c", "collapse", "Collapse Cell"),
+        ("ctrl+pageup", "join_above", "Join with Above"),
+        ("ctrl+pagedown", "join_below", "Join with Below"),
    ]
 
     next = None
@@ -306,7 +308,15 @@ class CodeCell(VerticalGroup):
             self.output_collapse_btn.collapsed = True
         else:
             self.collapse_btn.collapsed = not self.collapse_btn.collapsed
-            self.output_collapse_btn.collapsed = not self.output_collapse_btn.collapsed
+            self.output_collapse_btn.collapsed = not self.output_collapse_btn.collapsed 
+
+    def action_join_above(self) -> None:
+        if self.prev:
+            self.prev.merge_cells_with_self([self])
+
+    def action_join_below(self) -> None:
+        if self.next:
+            self.merge_cells_with_self([self.next])
 
     def disconnect(self): #-> tuple[str]:
         """Remove self from the linked list of cells. Update the pointers of the surrounding cells 

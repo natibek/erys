@@ -85,6 +85,8 @@ class MarkdownCell(HorizontalGroup):
 
     BINDINGS = [
         ("c", "collapse", "Collapse Cell"),
+        ("ctrl+pageup", "join_above", "Join with Above"),
+        ("ctrl+pagedown", "join_below", "Join with Below"),
     ]
 
     def __init__(
@@ -162,6 +164,14 @@ class MarkdownCell(HorizontalGroup):
 
     def action_collapse(self) -> None:
         self.collapse_btn.collapsed = not self.collapse_btn.collapsed
+
+    def action_join_above(self) -> None:
+        if self.prev:
+            self.prev.merge_cells_with_self([self])
+
+    def action_join_below(self) -> None:
+        if self.next:
+            self.merge_cells_with_self([self.next])
 
     def watch_merge_select(self, selected: bool) -> None:
         if selected:
