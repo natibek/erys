@@ -48,6 +48,9 @@ class MarkdownCollapseLabel(Label):
                 return line
 
 class CopyTextAreaMarkdown(TextArea):
+    BINDINGS = [
+        ("ctrl+backslash", "split_cell", "Split Cell")
+    ]
 
     def on_key(self, event: Key) -> None:
         match event.key:
@@ -58,14 +61,15 @@ class CopyTextAreaMarkdown(TextArea):
                 markdown_cell.render_markdown()
                 markdown_cell.focus()
                 event.stop()
-            case "ctrl+backslash":
-                markdown_cell: MarkdownCell = self.parent.parent
-                string_to_keep = self.get_text_range((0,0), self.cursor_location)
-                string_for_new_cell = self.text[len(string_to_keep):]
-                self.load_text(string_to_keep)
-                new_cell = MarkdownCell(markdown_cell.notebook, string_for_new_cell)
-                markdown_cell.notebook.cell_container.mount(new_cell, after=markdown_cell)
-                markdown_cell.notebook.connect_widget(new_cell)
+
+    def action_split_cell(self):
+        markdown_cell: MarkdownCell = self.parent.parent
+        string_to_keep = self.get_text_range((0,0), self.cursor_location)
+        string_for_new_cell = self.text[len(string_to_keep):]
+        self.load_text(string_to_keep)
+        new_cell = MarkdownCell(markdown_cell.notebook, string_for_new_cell)
+        markdown_cell.notebook.cell_container.mount(new_cell, after=markdown_cell)
+        markdown_cell.notebook.connect_widget(new_cell)
 
 
 class FocusMarkdown(Markdown):

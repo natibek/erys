@@ -48,18 +48,24 @@ class CodeCollapseLabel(Label):
 
 
 class CopyTextArea(TextArea):
+    BINDINGS = [
+        ("ctrl+backslash", "split_cell", "Split Cell")
+    ]
+
     def on_key(self, event: Key):
         match event.key:
             case "ctrl+c":
                 pyperclip.copy(self.selected_text)
-            case "ctrl+backslash":
-                code_cell: CodeCell = self.parent.parent.parent
-                string_to_keep = self.get_text_range((0,0), self.cursor_location)
-                string_for_new_cell = self.text[len(string_to_keep):]
-                self.load_text(string_to_keep)
-                new_cell = CodeCell(code_cell.notebook, string_for_new_cell)
-                code_cell.notebook.cell_container.mount(new_cell, after=code_cell)
-                code_cell.notebook.connect_widget(new_cell)
+    
+    def action_split_cell(self):
+        code_cell: CodeCell = self.parent.parent.parent
+        string_to_keep = self.get_text_range((0,0), self.cursor_location)
+        string_for_new_cell = self.text[len(string_to_keep):]
+        self.load_text(string_to_keep)
+        new_cell = CodeCell(code_cell.notebook, string_for_new_cell)
+        code_cell.notebook.cell_container.mount(new_cell, after=code_cell)
+        code_cell.notebook.connect_widget(new_cell)
+
 
 
 class OutputCollapseLabel(Label):
