@@ -3,6 +3,7 @@ from textual.events import MouseDown, Key, Enter, Leave
 from textual.reactive import var
 from textual.containers import VerticalGroup
 
+import re
 import pyperclip
 from typing import Any
 import uuid
@@ -61,14 +62,18 @@ class CopyTextArea(TextArea):
         match event.key:
             case "ctrl+c":
                 pyperclip.copy(self.selected_text)
-            case "escape":
-                cell: Cell = self.parent.parent.parent
-                cell.escape(event)
 
 class SplitTextArea(CopyTextArea):
     BINDINGS = [
         ("ctrl+backslash", "split_cell", "Split Cell")
     ]
+    def on_key(self, event: Key):
+        match event.key:
+            case "ctrl+c":
+                pyperclip.copy(self.selected_text)
+            case "escape":
+                cell: Cell = self.parent.parent.parent
+                cell.escape(event)
     
     def action_split_cell(self):
         cell: Cell = self.parent.parent.parent

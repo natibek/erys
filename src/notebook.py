@@ -7,7 +7,7 @@ from typing import Any
 import json
 
 from markdown_cell import MarkdownCell, FocusMarkdown
-from code_cell import CodeCell, CodeArea, OutputText, OutputJson
+from code_cell import CodeCell, CodeArea, OutputText, OutputJson, OutputError
 from cell import CopyTextArea
 from notebook_kernel import NotebookKernel
 
@@ -77,12 +77,11 @@ class Notebook(Container):
         # Ignore buttons
         if isinstance(event.widget, CodeCell) or isinstance(event.widget, MarkdownCell):
             self.last_focused = event.widget
-        elif isinstance(event.widget, OutputText) or isinstance(
-            event.widget, OutputJson
-        ):
+        elif any(
+            isinstance(event.widget, widgetType)
+            for widgetType in [OutputJson, OutputText, OutputError]
+        ) or event.widget.id in ["pretty-error-output", "plain-error-output"]:
             self.last_focused = event.widget.parent.parent.parent.parent
-        # elif isinstance(event.widget, CodeArea):
-        #     self.last_focused = event.widget.parent.parent.parent
         elif any(
             isinstance(event.widget, widgetType)
             for widgetType in [FocusMarkdown, CopyTextArea, CodeArea]

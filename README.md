@@ -9,14 +9,12 @@ NB Format: https://nbformat.readthedocs.io/en/latest/format_description.html
 1. Undo add/del cells
 1. Attaching to user kernel
 1. Execution time
-1. Print Ansi Escape errors
 1. Switch between markdown and code cell
-1. Floating buttons
 
 #### Rendering
 1. Image output types
 1. Mime output types
-1. Render text/html
+1. Render text/html table to a rich table
 
 
 ## Todo Coming Features
@@ -24,3 +22,4 @@ NB Format: https://nbformat.readthedocs.io/en/latest/format_description.html
 1. Raw cells
 1. Save backup
 1. Open from cache
+1. Floating buttons

@@ -30,6 +30,13 @@ CopyTextArea {
     margin: 0;
 }
 
+#pretty-error-output {
+    width: 1fr;
+    padding: 1;
+    margin: 1;
+    background: $surface;
+}
+
 MarkdownCell {
     padding: 1;
     width: 100%;

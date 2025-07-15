@@ -3,10 +3,12 @@ from asyncio import to_thread
 from textual.app import ComposeResult
 from textual.reactive import var
 from textual.containers import HorizontalGroup, VerticalGroup
-from textual.widgets import Static, Label, ContentSwitcher, Pretty
+from textual.widgets import Static, Label, ContentSwitcher, Pretty, RichLog
 from typing import Any
+import re
 from utils import COLLAPSED_COLOR, EXPANDED_COLOR
 from textual.events import Key, DescendantBlur
+from rich.text import Text
 from notebook_kernel import NotebookKernel
 from cell import CopyTextArea, SplitTextArea, Cell
 
@@ -103,6 +105,45 @@ class OutputText(CopyTextArea):
     def _on_blur(self) -> None:
         self.styles.border = None
 
+class OutputError(HorizontalGroup):
+    can_focus = True
+
+    def __init__(self, error_string: list[str]) -> None:
+        super().__init__()
+        error_string = "\n".join(error_string)
+        self.plain_error_string = self.replace_ansi_escape_with_markup(error_string, True)
+        self.pretty_error_string = Text.from_ansi(error_string)
+
+        self.static_output = Static(content=self.pretty_error_string, id="pretty-error-output")
+        self.text_output = OutputText(text=self.plain_error_string, id="plain-error-output")
+
+    def compose(self) -> ComposeResult:
+        self.switcher = ContentSwitcher(initial="pretty-error-output")
+        with self.switcher:
+            yield self.static_output
+            yield self.text_output
+   
+    def _on_focus(self) -> None:
+        self.switcher.current = "plain-error-output"
+
+    def on_descendant_blur(self, event: DescendantBlur) -> None:
+        self.switcher.current = "pretty-error-output"
+
+    def _on_blur(self) -> None:
+        if not self.app.focused or self.app.focused != self.text_output:
+            self.switcher.current = "pretty-error-output"
+
+    def replace_ansi_escape_with_markup(self, ansi_escaped_string: str, remove: bool = False) -> str:
+        """Returns the strings with ansi escapes replaced with markup if map is found but removed  if not 
+        using regex. Used to remove color from error messages.
+        
+        Args:
+            ansi_escaped_string: input string containing ansi escapes.
+        
+        Returns: string without ansi escapes.
+        """
+        ansi_escape = re.compile(r'\x1b\[[0-9;]*m')
+        return ansi_escape.sub("" if remove else self.substitute_with_markup, ansi_escaped_string)
 
 class CodeCell(Cell):
     BINDINGS = [
@@ -274,10 +315,7 @@ class CodeCell(Cell):
                         text = output["text"]
                     self.outputs_group.mount(OutputText(text=text))
                 case "error":
-                    text = "\n".join(output["traceback"])
-                    with open("output", "w") as f:
-                        f.write(f"{text}\n")
-                    self.outputs_group.mount(OutputText(text=text))
+                    self.outputs_group.mount(OutputError(output["traceback"]))
                 case "execute_result" | "display_data":
                     for type, data in output["data"].items():
                         match type:
