@@ -56,12 +56,7 @@ class CollapseLabel(Label):
         for line in split:
             if line != "":
                 return line
-
 class CopyTextArea(TextArea):
-    BINDINGS = [
-        ("ctrl+backslash", "split_cell", "Split Cell")
-    ]
-
     def on_key(self, event: Key):
         match event.key:
             case "ctrl+c":
@@ -69,6 +64,11 @@ class CopyTextArea(TextArea):
             case "escape":
                 cell: Cell = self.parent.parent.parent
                 cell.escape(event)
+
+class SplitTextArea(CopyTextArea):
+    BINDINGS = [
+        ("ctrl+backslash", "split_cell", "Split Cell")
+    ]
     
     def action_split_cell(self):
         cell: Cell = self.parent.parent.parent

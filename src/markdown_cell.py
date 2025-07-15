@@ -5,7 +5,7 @@ from textual.containers import HorizontalGroup
 from typing import Any
 from time import time
 from utils import DOUBLE_CLICK_INTERVAL
-from cell import Cell, CopyTextArea
+from cell import Cell, SplitTextArea
 
 
 class FocusMarkdown(Markdown):
@@ -31,7 +31,7 @@ class MarkdownCell(Cell):
             yield self.collapse_btn
             with self.switcher:
                 self.collapsed_markdown = Static("Collapsed Markdown...", id="collapsed-display")
-                self.input_text = CopyTextArea.code_editor(self.source, id="text", language="markdown", show_line_numbers=False)
+                self.input_text = SplitTextArea.code_editor(self.source, id="text", language="markdown", show_line_numbers=False)
                 self.markdown = FocusMarkdown(self.source, id="markdown")
                 yield self.collapsed_display
                 yield self.input_text

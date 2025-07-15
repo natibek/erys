@@ -8,7 +8,7 @@ from typing import Any
 from utils import COLLAPSED_COLOR, EXPANDED_COLOR
 from textual.events import Key, DescendantBlur
 from notebook_kernel import NotebookKernel
-from cell import CopyTextArea, Cell
+from cell import CopyTextArea, SplitTextArea, Cell
 
 class OutputCollapseLabel(Label):
     collapsed = var(False, init=False)
@@ -53,7 +53,7 @@ class RunLabel(Label):
         self.tooltip = self.toolips[is_running]
 
 
-class CodeArea(CopyTextArea):
+class CodeArea(SplitTextArea):
     closing_map = {"{": "}", "(": ")", "[": "]", "'": "'", '"': '"'}
 
     def on_key(self, event: Key) -> None:
@@ -107,10 +107,7 @@ class OutputText(CopyTextArea):
 class CodeCell(Cell):
     BINDINGS = [
         ("r", "run_cell", "Run Cell"),
-        ("c", "collapse", "Collapse Cell"),
-        ("ctrl+pageup", "join_above", "Join with Above"),
-        ("ctrl+pagedown", "join_below", "Join with Below"),
-   ]
+    ]
     exec_count: int | None = var(None)
     cell_type = "code"
 

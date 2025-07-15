@@ -288,9 +288,9 @@ class Notebook(Container):
             content = json.load(notebook_file)
             for idx, cell in enumerate(content["cells"]):
                 if cell["cell_type"] == "code":
-                    widget = CodeCell.from_nb(cell, self, idx)
+                    widget = CodeCell.from_nb(cell, self)
                 elif cell["cell_type"] == "markdown":
-                    widget = MarkdownCell.from_nb(cell, self, idx)
+                    widget = MarkdownCell.from_nb(cell, self)
 
                 if idx != 0:
                     prev.next = widget
