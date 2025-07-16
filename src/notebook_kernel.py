@@ -9,16 +9,26 @@ class NotebookKernel:
     """
 
     def __init__(self) -> None:
-        self.kernel_manager: KernelManager = KernelManager()  # kernel manager
-        self.kernel_manager.start_kernel()
-
-        self.kernel_client: BlockingKernelClient = (
-            self.kernel_manager.client()
-        )  # kernel client
-        self.kernel_client.start_channels()
-
         # lock to prevent data races when calling `run_code` for multiple cells asynchronously
         self.execution_lock = Lock()
+        self.initialize()
+    
+    def initialize(self) -> bool:
+        try:
+            self.kernel_manager: KernelManager = KernelManager()  # kernel manager
+            self.kernel_manager.start_kernel()
+            try: 
+                self.kernel_client: BlockingKernelClient = (
+                    self.kernel_manager.client()
+                )  # kernel client
+                self.kernel_client.start_channels()
+            except:
+                self.kernel_manager.shutdown_kernel()
+                return False
+        except:
+            return False
+        
+        return True
 
     def get_kernel_info(self) -> dict[str, str]:
         """Get the kernel info for the notebook metadata.
@@ -110,7 +120,7 @@ class NotebookKernel:
                             #    },
                             # }
                             output = msg["content"]
-                            output["output_type"] = "diplay_data"
+                            output["output_type"] = "display_data"
                             outputs.append(output)
                         case "stream":
                             # {
