@@ -3,7 +3,7 @@ from textual.events import MouseDown, Key, Enter, Leave
 from textual.reactive import var
 from textual.containers import VerticalGroup
 
-import time
+from time import time
 import pyperclip
 from typing import Any
 import uuid
@@ -52,7 +52,7 @@ class CollapseLabel(Label):
             self.styles.color = COLLAPSED_COLOR
             self.update("\n┃")
         else:
-            # set the swticher to the previous widget it was displaying
+            # set the switcher to the previous widget it was displaying
             self.parent_cell.switcher.current = self.prev_switcher
 
             if self.parent_cell.cell_type == "code": # if code cell, display the execution count
@@ -160,9 +160,6 @@ class Cell(VerticalGroup):
             self, collapsed=self._collapsed, id="collapse-button"
         ).with_tooltip("Collapse")
 
-        self.switcher = ContentSwitcher(
-            id="collapse-content", initial="text"
-        )
         self.collapsed_display = Static("", id="collapsed-display")
 
     async def on_key(self, event: Key) -> None:

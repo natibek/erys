@@ -6,12 +6,10 @@ from textual.containers import HorizontalGroup, VerticalGroup
 from textual.widgets import Static, Label, ContentSwitcher, Pretty
 from typing import Any
 import re
-from utils import COLLAPSED_COLOR, EXPANDED_COLOR
 from textual.events import Key, DescendantBlur
 from rich.text import Text
 from notebook_kernel import NotebookKernel
-from cell import CopyTextArea, SplitTextArea, Cell
-
+from cell import CopyTextArea, SplitTextArea, Cell, COLLAPSED_COLOR, EXPANDED_COLOR
 class OutputCollapseLabel(Label):
     """Custom label to use as the collapse button for the output of a code cell."""
     collapsed = var(False, init=False) # keep track of collapse state
@@ -213,7 +211,9 @@ class CodeCell(Cell):
         self.outputs: list[dict[str, Any]] = outputs
         self.exec_count = exec_count
         self._language = language
-        self.switcher.current = ""
+        self.switcher = ContentSwitcher(
+            id="collapse-content", initial="text"
+        )
 
         self.run_label = RunLabel(id="run-button")
         self.exec_count_display = Static(

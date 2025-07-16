@@ -1,5 +1,5 @@
 from textual.app import ComposeResult
-from textual.widgets import Markdown, Static
+from textual.widgets import Markdown, Static, ContentSwitcher
 from textual.events import Key, MouseDown
 from textual.containers import HorizontalGroup
 from typing import Any
@@ -24,6 +24,9 @@ class MarkdownCell(Cell):
     ) -> None:
         super().__init__(notebook, source, metadata, cell_id)
         self.collapse_btn.styles.width = 5
+        self.switcher = ContentSwitcher(
+            id="collapse-content", initial="markdown"
+        )
         self.collapsed_markdown = Static("Collapsed Markdown...", id="collapsed-display")
         self.input_text = SplitTextArea.code_editor(self.source, id="text", language="markdown", show_line_numbers=False)
         self.markdown = FocusMarkdown(self.source, id="markdown")
