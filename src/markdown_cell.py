@@ -3,7 +3,6 @@ from textual.widgets import Markdown, Static, ContentSwitcher
 from textual.events import Key, MouseDown
 from textual.containers import HorizontalGroup
 from typing import Any
-from time import time
 from cell import Cell, SplitTextArea
 
 

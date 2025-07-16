@@ -263,7 +263,7 @@ class Cell(VerticalGroup):
         """Remove self from the linked list of cells. Update the pointers of the surrounding cells
         to point to each other.
 
-        Returns: The next cell to focus on and there was relative to the removed cell
+        Returns: The next cell to focus on and where it was relative to the removed cell
         """
         last_focused = None
         position = "after"
