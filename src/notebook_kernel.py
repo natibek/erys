@@ -7,26 +7,29 @@ class NotebookKernel:
     """Class for kernel for each notebook. Contains kernel manager and client used to
     execute code.
     """
+
     def __init__(self) -> None:
-        self.kernel_manager: KernelManager = KernelManager() # kernel manager
+        self.kernel_manager: KernelManager = KernelManager()  # kernel manager
         self.kernel_manager.start_kernel()
 
-        self.kernel_client: BlockingKernelClient = self.kernel_manager.client() # kernel client
+        self.kernel_client: BlockingKernelClient = (
+            self.kernel_manager.client()
+        )  # kernel client
         self.kernel_client.start_channels()
 
         # lock to prevent data races when calling `run_code` for multiple cells asynchronously
-        self.execution_lock = Lock() 
+        self.execution_lock = Lock()
 
     def get_kernel_info(self) -> dict[str, str]:
-        """Get the kernel info for the notebook metadata. 
-        
+        """Get the kernel info for the notebook metadata.
+
         Returns: the dictionary representing the kernel info.
         """
         return {"name": self.kernel_manager.kernel_name}
 
     def get_kernel_spec(self) -> dict[str, str]:
         """Get the kernel spec for the notebook metadata.
-        
+
         Returns: the dictionary representing the kernel spec.
         """
         try:
@@ -45,7 +48,7 @@ class NotebookKernel:
 
     def get_language_info(self) -> dict[str, Any]:
         """Get the language info for the notebook metadata.
-        
+
         Returns: the dictionary representing the language info.
         """
         language_info = {}
@@ -66,7 +69,7 @@ class NotebookKernel:
 
         Returns: the outputs of executing the code with the kernel.
         """
-        with self.execution_lock: # acquire lock for executing code
+        with self.execution_lock:  # acquire lock for executing code
             self.kernel_client.execute(code)
 
             # Read the output from the iopub channel

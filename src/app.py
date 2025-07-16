@@ -26,11 +26,11 @@ class QuitScreen(Screen):
 
     def compose(self) -> ComposeResult:
         """Composed with:
-            - Screen
-                - Grid (id=dialog)
-                    - Label (id=question)
-                    - Button (id=quit)
-                    - Button (id=cancel)
+        - Screen
+            - Grid (id=dialog)
+                - Label (id=question)
+                - Button (id=quit)
+                - Button (id=cancel)
         """
         yield Grid(
             Label("Are you sure you want to quit?", id="question"),
@@ -41,7 +41,7 @@ class QuitScreen(Screen):
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Button pressed event handler that quits app or pops screen.
-        
+
         Args:
             event: button pressed event.
         """
@@ -52,7 +52,7 @@ class QuitScreen(Screen):
 
     def on_key(self, event: Key) -> None:
         """Key event handler that pops screen when escapa is pressed.
-        
+
         Args:
             event: key event.
         """
@@ -64,10 +64,11 @@ class QuitScreen(Screen):
 
 class DirectoryNav(DirectoryTree):
     """Custom directory tree with key navigation."""
+
     BINDINGS = [
         ("backspace", "back_dir", "Go up a directory"),
     ]
-    selected_dir: str | None = None # keep track of the selected directory
+    selected_dir: str | None = None  # keep track of the selected directory
 
     def action_back_dir(self) -> None:
         """Moves up a directory."""
@@ -78,7 +79,7 @@ class DirectoryNav(DirectoryTree):
         self, event: DirectoryTree.DirectorySelected
     ) -> None:
         """Directory selected event handler that sets the current directory to selected.
-        
+
         Args:
             event: directory selected event.
         """
@@ -108,19 +109,19 @@ class TerminalNotebook(App):
             if Path(path).is_file() and Path(path).suffix == ".ipynb"
         ]
         self.cur_tab = len(paths)
-        self.tab_to_nb_id_map: dict[str, int] = {} # maps from tab id to notebook id
+        self.tab_to_nb_id_map: dict[str, int] = {}  # maps from tab id to notebook id
 
     def compose(self) -> ComposeResult:
         """Composed with:
-            - App
-                - Header
-                - Horizontal
-                    - DirectoryNav (id=file-tree) 
-                    - Vertical
-                        - Tabs
-                        - ContentSwitcher (id=tab-content)
-                            - Notebook
-                - Footer
+        - App
+            - Header
+            - Horizontal
+                - DirectoryNav (id=file-tree)
+                - Vertical
+                    - Tabs
+                    - ContentSwitcher (id=tab-content)
+                        - Notebook
+            - Footer
         """
 
         yield Header(show_clock=True, time_format="%I:%M:%S %p")
@@ -156,7 +157,7 @@ class TerminalNotebook(App):
         """Tab activated event handler that switches content to show notebook the tab belongs to.
 
         Args:
-            event: tab activated event. 
+            event: tab activated event.
         """
         if event.tab is None:
             pass
@@ -171,7 +172,7 @@ class TerminalNotebook(App):
         extension.
 
         Args:
-            event: file selected event. 
+            event: file selected event.
         """
         if not os.path.exists(event.path):
             self.notify(f"{event.path} does not exist.", severity="error", timeout=8)
@@ -191,7 +192,7 @@ class TerminalNotebook(App):
             - moves focus to latest Notebook when enter is pressed (and tabs was focused on)
 
         Args:
-            event: key event. 
+            event: key event.
         """
         match event.key:
             case "escape":
@@ -243,7 +244,7 @@ class TerminalNotebook(App):
             self.switcher.remove_children(f"#{notebook_id}")
             del self.tab_to_nb_id_map[active_tab.label]
 
-        # set the switcher's currently displayed widget to none to avoid errors 
+        # set the switcher's currently displayed widget to none to avoid errors
         if len(self.tab_to_nb_id_map) == 0:
             self.switcher.current = None
 

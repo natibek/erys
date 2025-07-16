@@ -10,9 +10,12 @@ from textual.events import Key, DescendantBlur
 from rich.text import Text
 from notebook_kernel import NotebookKernel
 from cell import CopyTextArea, SplitTextArea, Cell, COLLAPSED_COLOR, EXPANDED_COLOR
+
+
 class OutputCollapseLabel(Label):
     """Custom label to use as the collapse button for the output of a code cell."""
-    collapsed = var(False, init=False) # keep track of collapse state
+
+    collapsed = var(False, init=False)  # keep track of collapse state
 
     def __init__(self, collapsed: bool = False, id: str = "") -> None:
         super().__init__("\n┃", id=id)
@@ -40,8 +43,9 @@ class OutputCollapseLabel(Label):
 
 class RunLabel(Label):
     """Custom label used as button for running/interrupting code cell."""
+
     running: bool = var(False, init=False)
-    glyphs = {False: "▶", True: "□"} # glyphs representing running state
+    glyphs = {False: "▶", True: "□"}  # glyphs representing running state
     toolips = {False: "Run", True: "Interrupt"}
 
     def __init__(self, id: str = "") -> None:
@@ -59,7 +63,7 @@ class RunLabel(Label):
 
     def watch_running(self, is_running: bool) -> None:
         """Watcher method to update the glyph and the tooltip depending on running state.
-        
+
         Args:
             is_running: whether the code cell is running.
         """
@@ -69,13 +73,14 @@ class RunLabel(Label):
 
 class CodeArea(SplitTextArea):
     """Widget used for editing code. Inherits from the SplitTextArea."""
+
     closing_map = {"{": "}", "(": ")", "[": "]", "'": "'", '"': '"'}
 
     def on_key(self, event: Key) -> None:
         """Key press event handler to close brackets and quotes.
 
         Args:
-            event: Key press event. 
+            event: Key press event.
         """
         if event.character in self.closing_map:
             self.insert(f"{event.character}{self.closing_map[event.character]}")
@@ -85,9 +90,11 @@ class CodeArea(SplitTextArea):
 
         super().on_key(event)
 
+
 class OutputJson(HorizontalGroup):
     """Widget for displaying application/json output_type."""
-    can_focus = True # Make the widget focusable
+
+    can_focus = True  # Make the widget focusable
 
     def __init__(self, data):
         super().__init__()
@@ -99,10 +106,10 @@ class OutputJson(HorizontalGroup):
         self.output_text.styles.border = "solid", "gray"
 
     def compose(self) -> ComposeResult:
-        """Composed of 
-            - Content switcher (initial=pretty-json)
-                - Pretty (id=pretty-json)
-                - CopyTextArea (id=plain-json)
+        """Composed of
+        - Content switcher (initial=pretty-json)
+            - Pretty (id=pretty-json)
+            - CopyTextArea (id=plain-json)
         """
         self.switcher = ContentSwitcher(initial="pretty-json")
         with self.switcher:
@@ -127,7 +134,8 @@ class OutputJson(HorizontalGroup):
 
 class OutputText(CopyTextArea):
     """Widget for displaying stream/plain error outputs"""
-    read_only = True # make text area read only
+
+    read_only = True  # make text area read only
 
     def _on_focus(self) -> None:
         """Add border when focused."""
@@ -137,31 +145,41 @@ class OutputText(CopyTextArea):
         """Remove border when focused."""
         self.styles.border = None
 
+
 class OutputError(HorizontalGroup):
     """Widget for displaying error output_type for code cells."""
-    can_focus = True # make widget focusable
+
+    can_focus = True  # make widget focusable
 
     def __init__(self, error_string: list[str]) -> None:
         super().__init__()
-        error_string = "\n".join(error_string) # comes as a multiline 
-        self.plain_error_string = self.replace_ansi_escape_with_markup(error_string, True) # remove the ansi
-        self.pretty_error_string = Text.from_ansi(error_string) # convert ansi to markup
+        error_string = "\n".join(error_string)  # comes as a multiline
+        self.plain_error_string = self.replace_ansi_escape_with_markup(
+            error_string, True
+        )  # remove the ansi
+        self.pretty_error_string = Text.from_ansi(
+            error_string
+        )  # convert ansi to markup
 
-        self.static_output = Static(content=self.pretty_error_string, id="pretty-error-output")
-        self.text_output = OutputText(text=self.plain_error_string, id="plain-error-output")
+        self.static_output = Static(
+            content=self.pretty_error_string, id="pretty-error-output"
+        )
+        self.text_output = OutputText(
+            text=self.plain_error_string, id="plain-error-output"
+        )
 
     def compose(self) -> ComposeResult:
-        """Composed of 
-            - HorizontalGroup
-                - Content switcher (initial=pretty-error-output)
-                    - Pretty (id=pretty-error-output)
-                    - CopyTextArea (id=plain-error-output)
+        """Composed of
+        - HorizontalGroup
+            - Content switcher (initial=pretty-error-output)
+                - Pretty (id=pretty-error-output)
+                - CopyTextArea (id=plain-error-output)
         """
         self.switcher = ContentSwitcher(initial="pretty-error-output")
         with self.switcher:
             yield self.static_output
             yield self.text_output
-   
+
     def _on_focus(self) -> None:
         """Switch to plain-error-output when focusing on widget."""
         self.switcher.current = "plain-error-output"
@@ -177,24 +195,32 @@ class OutputError(HorizontalGroup):
         if not self.app.focused or self.app.focused != self.text_output:
             self.switcher.current = "pretty-error-output"
 
-    def replace_ansi_escape_with_markup(self, ansi_escaped_string: str, remove: bool = False) -> str:
-        """Returns the strings with ansi escapes replaced with markup if map is found but removed  if not 
+    def replace_ansi_escape_with_markup(
+        self, ansi_escaped_string: str, remove: bool = False
+    ) -> str:
+        """Returns the strings with ansi escapes replaced with markup if map is found but removed  if not
         using regex. Used to remove color from error messages.
-        
+
         Args:
             ansi_escaped_string: input string containing ansi escapes.
-        
+
         Returns: string without ansi escapes.
         """
-        ansi_escape = re.compile(r'\x1b\[[0-9;]*m')
-        return ansi_escape.sub("" if remove else self.substitute_with_markup, ansi_escaped_string)
+        ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+        return ansi_escape.sub(
+            "" if remove else self.substitute_with_markup, ansi_escaped_string
+        )
+
 
 class CodeCell(Cell):
     """Widget to contain code cells in a notebook"""
+
     BINDINGS = [
         ("r", "run_cell", "Run Cell"),
     ]
-    exec_count: int | None = var(None, init=False) # Reactive to keep track of the execution count
+    exec_count: int | None = var(
+        None, init=False
+    )  # Reactive to keep track of the execution count
     cell_type = "code"
 
     def __init__(
@@ -205,20 +231,16 @@ class CodeCell(Cell):
         exec_count: int | None = None,
         metadata: dict[str, Any] = {},
         cell_id: str | None = None,
-        language: str = "Python"
+        language: str = "Python",
     ) -> None:
         super().__init__(notebook, source, metadata, cell_id)
         self.outputs: list[dict[str, Any]] = outputs
         self.exec_count = exec_count
         self._language = language
-        self.switcher = ContentSwitcher(
-            id="collapse-content", initial="text"
-        )
+        self.switcher = ContentSwitcher(id="collapse-content", initial="text")
 
         self.run_label = RunLabel(id="run-button")
-        self.exec_count_display = Static(
-            f"[{self.exec_count or ' '}]", id="exec-count"
-        )
+        self.exec_count_display = Static(f"[{self.exec_count or ' '}]", id="exec-count")
 
         self.input_text = CodeArea.code_editor(
             self.source,
@@ -233,25 +255,23 @@ class CodeCell(Cell):
         ).with_tooltip("Collapse Output")
 
         self.outputs_group = VerticalGroup(id="outputs")
-        self.output_switcher = ContentSwitcher(
-            id="collapse-outputs", initial="outputs"
-        )
+        self.output_switcher = ContentSwitcher(id="collapse-outputs", initial="outputs")
 
     def compose(self) -> ComposeResult:
         """Compose with:
-            - VerticalGroup
-                - HorziontalGroup
-                    - HorizontalGroup (id=code-sidebar)
-                        - CollapseLabel (id=collapse-button)
-                        - Static (id=exec-count)
-                    - ContentSwitcher (id=collapse-content)
-                        - CodeArea (id=text)
-                        - Static (id=collapsed-display)
-                - HorizontalGroup (id=output-section)
-                    - OutputCollapseLabel (id=output-collapse-button)
-                    - ContentSwitcher (id=collapse-outputs)
-                        - VerticalGroup (id=outputs)
-                        - Static (id=collapsed-output)
+        - VerticalGroup
+            - HorziontalGroup
+                - HorizontalGroup (id=code-sidebar)
+                    - CollapseLabel (id=collapse-button)
+                    - Static (id=exec-count)
+                - ContentSwitcher (id=collapse-content)
+                    - CodeArea (id=text)
+                    - Static (id=collapsed-display)
+            - HorizontalGroup (id=output-section)
+                - OutputCollapseLabel (id=output-collapse-button)
+                - ContentSwitcher (id=collapse-outputs)
+                    - VerticalGroup (id=outputs)
+                    - Static (id=collapsed-output)
         """
         with HorizontalGroup():
             with HorizontalGroup(id="code-sidebar"):
@@ -270,7 +290,7 @@ class CodeCell(Cell):
                 yield Static("Outputs are collapsed...", id="collapsed-output")
 
     def on_mount(self):
-        """On mount, toggle the display for the output collapse button if there are outputs and 
+        """On mount, toggle the display for the output collapse button if there are outputs and
         display the outputs.
         """
         self.output_collapse_btn.display = len(self.outputs) > 0
@@ -300,7 +320,7 @@ class CodeCell(Cell):
             self.output_collapse_btn.collapsed = True
         else:
             self.collapse_btn.collapsed = not self.collapse_btn.collapsed
-            self.output_collapse_btn.collapsed = not self.output_collapse_btn.collapsed 
+            self.output_collapse_btn.collapsed = not self.output_collapse_btn.collapsed
 
     async def open(self):
         """Defines what it means to open a code cell. Focus on the input_text widget."""
@@ -313,7 +333,7 @@ class CodeCell(Cell):
         Args:
             nb: the notebook json/dict format of the code cell.
             notebook: the `Notebook` object the code cell belongs too.
-        
+
         Returns: `CodeCell` from notebook format.
 
         Raises:
@@ -375,10 +395,10 @@ class CodeCell(Cell):
 
     def clone(self, connect: bool = True) -> "CodeCell":
         """Clone a code cell. Used for cut/paste.
-        
+
         Args:
             connect: whether to keep the pointers to the next and previous cells.
-        
+
         Returns: cloned code cell.
         """
         clone = CodeCell(
@@ -401,7 +421,7 @@ class CodeCell(Cell):
         code cell.
 
         Args:
-            outputs: list of serialized outputs. 
+            outputs: list of serialized outputs.
         """
         try:
             self.outputs_group = self.query_one("#outputs", VerticalGroup)
@@ -447,7 +467,9 @@ class CodeCell(Cell):
         """Run code in code cell with the kernel in a thread. Update the outputs and the
         execution count for the cell.
         """
-        if not self.notebook.notebook_kernel: # check if there is a kernel for the notebook
+        if (
+            not self.notebook.notebook_kernel
+        ):  # check if there is a kernel for the notebook
             self.notify(
                 "No kernel available for notebook.", severity="error", timeout=8
             )
@@ -455,16 +477,16 @@ class CodeCell(Cell):
 
         kernel: NotebookKernel = self.notebook.notebook_kernel
 
-        self.source = self.input_text.text 
-        if not self.source: # only call the kernel execute if there is code
+        self.source = self.input_text.text
+        if not self.source:  # only call the kernel execute if there is code
             return
 
-        self.run_label.running = True # update the running status for the code cell
+        self.run_label.running = True  # update the running status for the code cell
         outputs, execution_count = await to_thread(kernel.run_code, self.source)
-        self.run_label.running = False 
+        self.run_label.running = False
         self.exec_count = execution_count
         self.outputs = outputs
-        self.call_next(self.update_outputs, outputs) # update the output cells
+        self.call_next(self.update_outputs, outputs)  # update the output cells
 
     def interrupt_cell(self) -> None:
         """Interrupt kernel when running cell."""

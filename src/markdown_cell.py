@@ -9,10 +9,13 @@ from cell import Cell, SplitTextArea
 
 class FocusMarkdown(Markdown):
     """Focusable Markdown to contain markdown for markdown cell."""
+
     can_focus = True
+
 
 class MarkdownCell(Cell):
     """Widget to contain markdown cells in a notebook"""
+
     cell_type = "markdown"
 
     def __init__(
@@ -24,22 +27,24 @@ class MarkdownCell(Cell):
     ) -> None:
         super().__init__(notebook, source, metadata, cell_id)
         self.collapse_btn.styles.width = 5
-        self.switcher = ContentSwitcher(
-            id="collapse-content", initial="markdown"
+        self.switcher = ContentSwitcher(id="collapse-content", initial="markdown")
+        self.collapsed_markdown = Static(
+            "Collapsed Markdown...", id="collapsed-display"
         )
-        self.collapsed_markdown = Static("Collapsed Markdown...", id="collapsed-display")
-        self.input_text = SplitTextArea.code_editor(self.source, id="text", language="markdown", show_line_numbers=False)
+        self.input_text = SplitTextArea.code_editor(
+            self.source, id="text", language="markdown", show_line_numbers=False
+        )
         self.markdown = FocusMarkdown(self.source, id="markdown")
 
     def compose(self) -> ComposeResult:
         """Compose with:
-            - VerticalGroup
-                - HorziontalGroup
-                    - CollapseLabela (id=collapse-button)
-                    - ContentSwitcher (id=collapse-content)
-                        - SplitTextArea (id=text)
-                        - FocusMarkdown (id=markdown)
-                        - Static (id=collapsed-display)
+        - VerticalGroup
+            - HorziontalGroup
+                - CollapseLabela (id=collapse-button)
+                - ContentSwitcher (id=collapse-content)
+                    - SplitTextArea (id=text)
+                    - FocusMarkdown (id=markdown)
+                    - Static (id=collapsed-display)
         """
         with HorizontalGroup():
             yield self.collapse_btn
@@ -85,7 +90,7 @@ class MarkdownCell(Cell):
         Args:
             nb: the notebook json/dict format of the markdown cell.
             notebook: the `Notebook` object the markdown cell belongs too.
-        
+
         Returns: `MarkdownCell` from notebook format.
 
         Raises:
@@ -133,17 +138,17 @@ class MarkdownCell(Cell):
 
     def clone(self, connect: bool = True) -> "MarkdownCell":
         """Clone a markdown cell. Used for cut/paste.
-        
+
         Args:
             connect: whether to keep the pointers to the next and previous cells.
-        
+
         Returns: cloned markdown cell.
         """
         clone = MarkdownCell(
             notebook=self.notebook,
-            source = self.input_text.text,
-            metadata = self._metadata,
-            cell_id = self._cell_id,
+            source=self.input_text.text,
+            metadata=self._metadata,
+            cell_id=self._cell_id,
         )
         if connect:
             clone.next = self.next

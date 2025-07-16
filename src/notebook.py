@@ -11,18 +11,20 @@ from code_cell import CodeCell, CodeArea, OutputText, OutputJson, OutputError
 from cell import CopyTextArea
 from notebook_kernel import NotebookKernel
 
+
 class ButtonRow(HorizontalGroup):
     """Buttton row on top of Notebook"""
+
     def compose(self) -> ComposeResult:
         """Composed with:
-            - HorizontalGroup
-                - Button (id=add-code-cell)
-                - Button (id=add-markdown-cell)
-                - Button (id=run-before)
-                - Button (id=run-after)
-                - Button (id=run-all)
-                - Button (id=restart-shell)
-        
+        - HorizontalGroup
+            - Button (id=add-code-cell)
+            - Button (id=add-markdown-cell)
+            - Button (id=run-before)
+            - Button (id=run-after)
+            - Button (id=run-all)
+            - Button (id=restart-shell)
+
         """
         yield Button("➕ Code", id="add-code-cell")
         yield Button("➕ Markdown", id="add-markdown-cell")
@@ -37,11 +39,11 @@ class ButtonRow(HorizontalGroup):
 class Notebook(Container):
     """Container representing a notebook."""
 
-    last_focused = None # keep track of the last focused cell
-    last_copied = None # keep track of the copied/cut cell
+    last_focused = None  # keep track of the last focused cell
+    last_copied = None  # keep track of the copied/cut cell
     _delete_stack = []
-    _merge_list: list[CodeCell | MarkdownCell] = [] # list of the cells to be merged.
-    
+    _merge_list: list[CodeCell | MarkdownCell] = []  # list of the cells to be merged.
+
     BINDINGS = [
         ("a", "add_cell_after", "Add Cell After"),
         ("b", "add_cell_before", "Add Cell Before"),
@@ -69,10 +71,10 @@ class Notebook(Container):
 
     def compose(self) -> ComposeResult:
         """Composed with:
-            - Container
-                - ButtonRow
-                - VerticalScroll (id=cell-container)
-                    - Cell
+        - Container
+            - ButtonRow
+            - VerticalScroll (id=cell-container)
+                - Cell
         """
         yield ButtonRow()
         self.cell_container = VerticalScroll(id="cell-container")
@@ -113,13 +115,13 @@ class Notebook(Container):
             self.last_focused = event.widget.parent.parent.parent
 
     def on_key(self, event: Key) -> None:
-        """Key event handler that 
+        """Key event handler that
             - disables tab and shift+tab for changing focus,
             - clears merge list when escape is presed
             - moves focus between cells using up and down arrows.
 
         Args:
-            event: key event.     
+            event: key event.
         """
         match event.key:
             case "tab" | "shift+tab":
@@ -142,7 +144,7 @@ class Notebook(Container):
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Button pressed event handler for button row on top of notebook.
-        
+
         Args:
             event: button pressed event.
         """
@@ -170,18 +172,20 @@ class Notebook(Container):
                         await cell.run_cell()
                 self.last_focused.focus()
             case "run-after":
-                if not self.last_focused: return
+                if not self.last_focused:
+                    return
 
                 # iterate over all the code cells starting from (including) the current and run them
                 cell = self.last_focused
                 while cell:
                     if isinstance(cell, CodeCell):
                         await cell.run_cell()
-                    cell = cell.next 
+                    cell = cell.next
                 self.last_focused.focus()
 
             case "run-before":
-                if not self.last_focused: return
+                if not self.last_focused:
+                    return
                 # iterate over all the code cells up to (not including) the current and run them
                 for cell in self.cell_container.children:
                     if cell == self.last_focused:
@@ -200,12 +204,13 @@ class Notebook(Container):
 
     def action_save_as(self) -> str:
         """Save notebook as a new file."""
+
         def check_save_as(path: str | None) -> None:
             """Callback function to save notebook if save as screen dismisses successfully.
-            
+
             Args:
                 path: string if save as screen dismisses with a file path chosen
-                    to save notebook at. 
+                    to save notebook at.
             """
             if path:
                 self.path = path
@@ -231,11 +236,12 @@ class Notebook(Container):
 
     def action_delete_cell(self) -> None:
         """Delete cell."""
-        if not self.last_focused: return
-        
+        if not self.last_focused:
+            return
+
         # disconnect the cell from surrounding cells and find new cell to focus on
         last_focused, position = self.last_focused.disconnect()
-        
+
         # add it to the `delete_stack` for undoing
         # self.delete_stack.append(
         #     (self.last_focused.clone(connect=False), position, last_focused.id)
@@ -250,13 +256,15 @@ class Notebook(Container):
 
     def action_copy_cell(self) -> None:
         """Copy cell."""
-        if not self.last_focused: return
+        if not self.last_focused:
+            return
         # store serialized representation of copied cell
         self.last_copied = self.last_focused.to_nb()
-    
+
     def action_cut_cell(self) -> None:
         """Cut cell."""
-        if not self.last_focused: return
+        if not self.last_focused:
+            return
 
         # store serialized representation of cut cell and delete it
         self.last_copied = self.last_focused.to_nb()
@@ -264,7 +272,8 @@ class Notebook(Container):
 
     async def action_paste_cell(self) -> None:
         """Paste cut/copied cell."""
-        if not self.last_copied: return
+        if not self.last_copied:
+            return
 
         # generate the `MarkdownCell` or `CodeCell` from the stored serialized copy.
         match self.last_copied["cell_type"]:
@@ -273,14 +282,15 @@ class Notebook(Container):
             case "code":
                 widget = CodeCell.from_nb(self.last_copied, self)
 
-        widget.set_new_id() # update id to avoid conflict during copy/paste
+        widget.set_new_id()  # update id to avoid conflict during copy/paste
         # mount and connect the widget
         await self.cell_container.mount(widget, after=self.last_focused)
         self.connect_widget(widget)
 
     async def action_move_up(self) -> None:
         """Move the cell up."""
-        if not self.last_focused: return 
+        if not self.last_focused:
+            return
 
         if self.last_focused.prev:
             # clone the cell
@@ -309,7 +319,8 @@ class Notebook(Container):
 
     async def action_move_down(self) -> None:
         """Move the cell down."""
-        if not self.last_focused: return 
+        if not self.last_focused:
+            return
 
         if self.last_focused.next:
             # clone the cell
@@ -339,17 +350,18 @@ class Notebook(Container):
 
     def action_merge_cells(self) -> None:
         """Merge selected cells by combining content in text areas into the one selected. Should be
-        called by the first selected cell in the the cells to merge. The resulting type will be 
+        called by the first selected cell in the the cells to merge. The resulting type will be
         of the first selected's type.
         """
-        if len(self._merge_list) < 2: return
+        if len(self._merge_list) < 2:
+            return
         target: CodeCell | MarkdownCell = self._merge_list[0]
         target.merge_cells_with_self(self._merge_list[1:])
         target.merge_select = False
         self._merge_list = []
 
     def focus_notebook(self) -> None:
-        """Defines what focusing on a notebook does. If there is a cell that was last focused, 
+        """Defines what focusing on a notebook does. If there is a cell that was last focused,
         focus on it; otherwise, focus on the `cell_container`.
         """
         if self.last_focused:
@@ -359,7 +371,7 @@ class Notebook(Container):
 
     def save_notebook(self, path: str) -> None:
         """Saves the notebook to the provided path.
-        
+
         Args:
             path: file path to save notebook at.
         """
@@ -368,7 +380,7 @@ class Notebook(Container):
             json.dump(nb, nb_file)
 
     def load_notebook(self) -> None:
-        """Load notebook from a file. Iterate through the cells and generate the `CodeCell` and 
+        """Load notebook from a file. Iterate through the cells and generate the `CodeCell` and
         `MarkdownCell` objects from the serialized formats and mount them to the `cell_container`.
         """
         with open(self.path, "r") as notebook_file:
@@ -410,22 +422,26 @@ class Notebook(Container):
 
         await self.cell_container.mount(widget, **kwargs)
         self.connect_widget(widget, position)
-            
+
         return widget
 
-    def connect_widget(self, widget: CodeCell|MarkdownCell, position: str = "after") -> None:
+    def connect_widget(
+        self, widget: CodeCell | MarkdownCell, position: str = "after"
+    ) -> None:
         """Connect the cell (widget) after or before the `last_focused` cell.
 
         Args:
             widget: the widget being connected.
             position: where in relation to the focused cell to connect the widget 'after', 'before'.
         """
-        if not self.last_focused: # if no cell has been focused on, set the new cell as the focused
+        if (
+            not self.last_focused
+        ):  # if no cell has been focused on, set the new cell as the focused
             self.last_focused = widget
             self.last_focused.focus()
 
         # if positioning after last focused, add widget between last_focused and last_focused.next
-        elif position == "after": 
+        elif position == "after":
             next = self.last_focused.next
             self.last_focused.next = widget
             widget.next = next

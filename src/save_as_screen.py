@@ -10,13 +10,14 @@ from textual.validation import ValidationResult, Validator
 
 class NotebookName(Validator):
     """Validator for notebook name."""
+
     def validate(self, value: str) -> ValidationResult:
         """Checks if the provided name for a noteboook has correct ipynb extension.
-        
+
         Args:
             value: provided file name for notebook.
 
-        Returns: validation result based on whether extension is correct. 
+        Returns: validation result based on whether extension is correct.
         """
         ext = Path(value).suffix
         if ext == ".ipynb":
@@ -27,6 +28,7 @@ class NotebookName(Validator):
 
 class FilteredDirectoryTree(DirectoryTree):
     """Filtered directory tree containing only directories and notebook files."""
+
     def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
         return [path for path in paths if path.suffix == ".ipynb" or path.is_dir()]
 
@@ -34,11 +36,11 @@ class FilteredDirectoryTree(DirectoryTree):
 class SaveAsScreen(Screen[str | None]):
     def compose(self) -> ComposeResult:
         """Composed with:
-            - Screen
-                - Vertical (id=save-as)
-                    - Input (id=save-as-input)
-                    - Static (id=save-as-dir)
-                    - FilteredDirectoryTree (id=save-as-dir-tree)
+        - Screen
+            - Vertical (id=save-as)
+                - Input (id=save-as-input)
+                - Static (id=save-as-dir)
+                - FilteredDirectoryTree (id=save-as-dir-tree)
         """
         with Vertical(id="save-as"):
             # input for file name
@@ -56,7 +58,7 @@ class SaveAsScreen(Screen[str | None]):
 
     def on_screen_resume(self, event: ScreenResume) -> None:
         """Screen resume event handler that resets the path for directory tree and static to pwd.
-        
+
         Args:
             event: screen resume event.
         """
@@ -68,7 +70,7 @@ class SaveAsScreen(Screen[str | None]):
     ) -> None:
         """File selected event handler that sets the file name for saving file to
         the name of the selected file and updates the directory where the file will be saved.
-        
+
         Args:
             event: file selected event.
         """
@@ -87,7 +89,7 @@ class SaveAsScreen(Screen[str | None]):
     ) -> None:
         """Directory selected event handler that sets the directory where
         file will be saved to the selected directory.
-        
+
         Args:
             event: directory selected event.
         """
@@ -97,10 +99,10 @@ class SaveAsScreen(Screen[str | None]):
         event.stop()
 
     def on_key(self, event: Key) -> None:
-        """Key press event handler that 
+        """Key press event handler that
             - prevents event propagation for the escape, n, ctrl+k, ctrl+l, d keys
             - used backspace for navigating up a directory
-        
+
         Args:
             event: key event.
         """
