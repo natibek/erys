@@ -4,7 +4,6 @@ from textual.events import Key, MouseDown
 from textual.containers import HorizontalGroup
 from typing import Any
 from time import time
-from utils import DOUBLE_CLICK_INTERVAL
 from cell import Cell, SplitTextArea
 
 
@@ -14,7 +13,6 @@ class FocusMarkdown(Markdown):
 
 class MarkdownCell(Cell):
     """Widget to contain markdown cells in a notebook"""
-    _last_click_time: float = 0.0 # keep track of the last mouse click
     cell_type = "markdown"
 
     def __init__(
@@ -46,25 +44,6 @@ class MarkdownCell(Cell):
                 yield self.collapsed_display
                 yield self.input_text
                 yield self.markdown
-
-    def on_mouse_down(self, event: MouseDown) -> None:
-        """Mouse down event handler. Add cell to the merge list if ctrl is held. If the time
-        between mouse down event is below the threshold, call the double click event handler.
-
-        Args:
-            event: MouseDown event.
-        """
-        now = time()
-        if event.ctrl:
-            if not self.merge_select:
-                self.notebook._merge_list.append(self)
-            else:
-                self.notebook._merge_list.remove(self)
-
-            self.merge_select = not self.merge_select
-        elif now - self._last_click_time <= DOUBLE_CLICK_INTERVAL:
-            self.on_double_click(event)
-        self._last_click_time = now
 
     def on_double_click(self, event: MouseDown) -> None:
         """Double click event handler that switches content to the input text from markdown.
