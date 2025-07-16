@@ -99,11 +99,7 @@ class OutputJson(HorizontalGroup):
     def __init__(self, data):
         super().__init__()
         self.data = data
-        self.output_text = CopyTextArea(str(self.data), id="plain-json")
-        self.output_text.read_only = True
-        self.output_text.styles.padding = 0
-        self.output_text.styles.margin = 0
-        self.output_text.styles.border = "solid", "gray"
+        self.output_text = OutputText(str(self.data), id="plain-json")
 
     def compose(self) -> ComposeResult:
         """Composed of

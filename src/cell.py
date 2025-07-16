@@ -166,6 +166,7 @@ class Cell(VerticalGroup):
         self.source = source
         self._metadata = metadata
         self._cell_id = cell_id or get_cell_id()
+        self.id = f"_{self._cell_id}"
         self._collapsed = metadata.get("collapsed", False)
 
         self.collapse_btn = CollapseLabel(
@@ -263,20 +264,21 @@ class Cell(VerticalGroup):
         """Remove self from the linked list of cells. Update the pointers of the surrounding cells
         to point to each other.
 
-        Returns: The next cell to focus on and where it was relative to the removed cell
+        Returns: The next cell to focus on and where the removed cell was relative to it.
         """
-        last_focused = None
+        next_focus = None
         position = "after"
         if prev := self.prev:
-            last_focused = prev
+            next_focus = prev
+            position = "after"
             prev.next = self.next
-            position = "before"
 
         if next := self.next:
-            last_focused = next
+            next_focus = next
+            position = "before"
             next.prev = self.prev
 
-        return last_focused, position
+        return next_focus, position
 
     def set_new_id(self) -> None:
         """Update cell id with a new uuid."""

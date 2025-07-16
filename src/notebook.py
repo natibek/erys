@@ -1,18 +1,20 @@
 from textual.app import ComposeResult
-from textual.widgets import Button, TextArea
-from textual.containers import HorizontalGroup, VerticalScroll, Container
+from textual.widgets import Button, TextArea, Markdown
+from textual.containers import VerticalScroll, Container, HorizontalScroll
 from textual.events import Key, DescendantFocus
 
 from typing import Any
+import matplotlib
 import json
 
-from markdown_cell import MarkdownCell, FocusMarkdown
+from markdown_cell import MarkdownCell
 from code_cell import CodeCell, CodeArea, OutputText, OutputJson, OutputError
-from cell import CopyTextArea
+from cell import CopyTextArea, Cell
 from notebook_kernel import NotebookKernel
 
+MAX_UNDO_LEN = 20
 
-class ButtonRow(HorizontalGroup):
+class ButtonRow(HorizontalScroll):
     """Buttton row on top of Notebook"""
 
     def compose(self) -> ComposeResult:
@@ -28,29 +30,31 @@ class ButtonRow(HorizontalGroup):
         """
         yield Button("➕ Code", id="add-code-cell")
         yield Button("➕ Markdown", id="add-markdown-cell")
+        yield Button("▶ Run All", id="run-all")
         yield Button("▲ Run Before", id="run-before")
         yield Button("▼ Run After", id="run-after")
         # yield Button("▶ ↑ Run Before", id="run-before")
         # yield Button("▶ ↓ Run After", id="run-after")
-        yield Button("▶ Run All", id="run-all")
         yield Button("🔁 Restart", id="restart-shell")
-        yield Button("Switch Cell Type", id="switch-cell-type")
+        yield Button("Toggle Cell Type", id="toggle-cell-type")
 
 
 class Notebook(Container):
     """Container representing a notebook."""
 
-    last_focused: CodeCell | MarkdownCell | None = None  # keep track of the last focused cell
-    last_copied: CodeCell | MarkdownCell | None = None  # keep track of the copied/cut cell
-    _delete_stack = []
-    _merge_list: list[CodeCell | MarkdownCell] = []  # list of the cells to be merged.
+    last_focused: Cell | None = None  # keep track of the last focused cell
+    last_copied: Cell | None = None  # keep track of the copied/cut cell
+    _delete_stack: list[tuple[dict[str, Any], str, str]] = []
+    _merge_list: list[Cell] = []  # list of the cells to be merged.
 
     BINDINGS = [
         ("a", "add_cell_after", "Add Cell After"),
         ("b", "add_cell_before", "Add Cell Before"),
+        ("t", "toggle_cell", "Toggle Cell Type"),
         ("ctrl+up", "move_up", "Move Cell Up"),
         ("ctrl+down", "move_down", "Move Cell Down"),
         ("M", "merge_cells", "Merge Cells"),
+        ("ctrl+u", "undo", "Undo Delete"),
         ("ctrl+c", "copy_cell", "Copy Cell"),
         ("ctrl+x", "cut_cell", "Cut Cell"),
         ("ctrl+v", "paste_cell", "Paste Cell"),
@@ -111,7 +115,7 @@ class Notebook(Container):
             self.last_focused = event.widget.parent.parent.parent.parent
         elif any(
             isinstance(event.widget, widgetType)
-            for widgetType in [FocusMarkdown, CopyTextArea, CodeArea]
+            for widgetType in [Markdown, CopyTextArea, CodeArea]
         ):
             self.last_focused = event.widget.parent.parent.parent
 
@@ -131,17 +135,13 @@ class Notebook(Container):
             case "escape":
                 for cell in self._merge_list:
                     cell.merge_select = False
-
                 self._merge_list = []
-
-        if not isinstance(self.app.focused, TextArea):
-            match event.key:
-                case "up":
-                    if self.last_focused and (prev_cell := self.last_focused.prev):
-                        prev_cell.focus()
-                case "down":
-                    if self.last_focused and (next_cell := self.last_focused.next):
-                        next_cell.focus()
+            case "up" if not isinstance(self.app.focused, TextArea):
+                if self.last_focused and (prev_cell := self.last_focused.prev):
+                    prev_cell.focus()
+            case "down" if not isinstance(self.app.focused, TextArea):
+                if self.last_focused and (next_cell := self.last_focused.next):
+                    next_cell.focus()
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Button pressed event handler for button row on top of notebook.
@@ -172,8 +172,8 @@ class Notebook(Container):
                 await self.run_cells_after()
             case "run-before":
                 await self.run_cells_before()
-            case "switch-cell-type":
-                await self.switch_cell_type()
+            case "toggle-cell-type":
+                await self.toggle_cell_type()
 
     async def action_add_cell_after(self) -> None:
         """Add code cell after current cell."""
@@ -217,23 +217,7 @@ class Notebook(Container):
 
     def action_delete_cell(self) -> None:
         """Delete cell."""
-        if not self.last_focused:
-            return
-
-        # disconnect the cell from surrounding cells and find new cell to focus on
-        last_focused, position = self.last_focused.disconnect()
-
-        # add it to the `delete_stack` for undoing
-        # self.delete_stack.append(
-        #     (self.last_focused.clone(connect=False), position, last_focused.id)
-        # )
-
-        # remove cell
-        self.call_after_refresh(self.last_focused.remove)
-        self.last_focused = last_focused
-
-        if self.last_focused:
-            self.last_focused.focus()
+        self.delete_cell()
 
     def action_copy_cell(self) -> None:
         """Copy cell."""
@@ -249,7 +233,7 @@ class Notebook(Container):
 
         # store serialized representation of cut cell and delete it
         self.last_copied = self.last_focused.to_nb()
-        self.action_delete_cell()
+        self.delete_cell()
 
     async def action_paste_cell(self) -> None:
         """Paste cut/copied cell."""
@@ -341,6 +325,76 @@ class Notebook(Container):
         target.merge_cells_with_self(self._merge_list[1:])
         target.merge_select = False
         self._merge_list = []
+    
+    async def action_toggle_cell(self) -> None:
+        """Callback for binding to swtich the cell type keeping the input text source."""
+        await self.toggle_cell_type()
+    
+    def action_undo(self) -> None:
+        """Callback for binding to undo deletion."""
+        self.undo_delete()
+
+    def undo_delete(self) -> None:
+        """Undo last deletion by recreating cell from saved serialized data. Try to find the `Cell`
+        with the id stored and mount relative to it with the stored position. If the query by id
+        fails, just place relative to the `last_focused` cell. If the stored id is
+        None, then widget was the only cell in the notebook when it was deleted.
+        """
+        if len(self._delete_stack) == 0: return
+
+        # get the last deleted cell
+        last_delete, position, relative_to_id  = self._delete_stack.pop()
+
+        # recreate the deleted cell
+        match last_delete["cell_type"]:
+            case "markdown":
+                widget = MarkdownCell.from_nb(last_delete, self)
+            case "code":
+                widget = CodeCell.from_nb(last_delete, self)
+
+        if relative_to_id:
+            try: 
+            # attempt to find the cell to mount relative to
+                target_widget = self.cell_container.query_one(f"#{relative_to_id}", Cell)
+            except:
+            # if the query fails, the target position should be relative to the last_focused cell
+                target_widget = self.last_focused
+        else:
+            target_widget = None
+
+        # mount it relative to the target_widget
+        self.cell_container.mount(widget, **{position:target_widget})
+
+        # update the pointers of the widgets surrounding where it was mounted
+        self.connect_widget(widget, target_widget, position)
+
+    def delete_cell(self, remember: bool = True) -> None:
+        """Delete a cell and keep track of it in the `_delete_stack` if remember is True.
+        
+        Args:
+            remember: whether to keep track of the deleted to undo later.
+        """
+        if not self.last_focused:
+            return
+
+        # disconnect the cell from surrounding cells and find new cell to focus on
+        next_focus, position = self.last_focused.disconnect()
+
+        if remember:
+            # add it to the `delete_stack` for undoing
+            id = next_focus.id if next_focus else None
+            self._delete_stack.append(
+                (self.last_focused.to_nb(), position, id)
+            )
+            if len(self._delete_stack) > MAX_UNDO_LEN:
+                self._delete_stack = self._delete_stack[-MAX_UNDO_LEN:]
+
+        # remove cell
+        self.call_after_refresh(self.last_focused.remove)
+        self.last_focused = next_focus
+
+        if self.last_focused:
+            self.last_focused.focus()
 
     async def run_all_cells(self) -> None:
         """Run all code cells."""
@@ -375,7 +429,7 @@ class Notebook(Container):
                 await cell.run_cell()
         self.last_focused.focus()
     
-    async def switch_cell_type(self) -> None:
+    async def toggle_cell_type(self) -> None:
         """Swtich the cell type keeping the input text source."""
         if not self.last_focused:
             return
@@ -389,11 +443,7 @@ class Notebook(Container):
         # easiest solution is to mount after the cell that is switching then deleting the original
         await self.cell_container.mount(new_cell, after=self.last_focused)
         self.connect_widget(new_cell)
-
-        self.last_focused.disconnect()
-        self.call_after_refresh(self.last_focused.remove)
-        self.last_focused = new_cell
-        self.last_focused.focus()
+        self.delete_cell(remember=False)
 
     def focus_notebook(self) -> None:
         """Defines what focusing on a notebook does. If there is a cell that was last focused,
@@ -456,40 +506,43 @@ class Notebook(Container):
         widget = cell_type(self, **cell_kwargs)
 
         await self.cell_container.mount(widget, **kwargs)
-        self.connect_widget(widget, position)
+        self.connect_widget(widget, position=position)
 
         return widget
 
     def connect_widget(
-        self, widget: CodeCell | MarkdownCell, position: str = "after"
+        self, widget: Cell, relative_to: Cell | None = None, position: str = "after"
     ) -> None:
-        """Connect the cell (widget) after or before the `last_focused` cell.
+        """Connect the cell (widget) after or before the the `Cell` `relative_to`.
 
         Args:
             widget: the widget being connected.
+            relative_to: relative to which cell the widget is being connected
             position: where in relation to the focused cell to connect the widget 'after', 'before'.
         """
+        relative_to = self.last_focused if not relative_to else relative_to
+
         if (
-            not self.last_focused
+            not relative_to
         ):  # if no cell has been focused on, set the new cell as the focused
             self.last_focused = widget
             self.last_focused.focus()
 
         # if positioning after last focused, add widget between last_focused and last_focused.next
         elif position == "after":
-            next = self.last_focused.next
-            self.last_focused.next = widget
+            next = relative_to.next
+            relative_to.next = widget
             widget.next = next
-            widget.prev = self.last_focused
+            widget.prev = relative_to
 
             if next:
                 next.prev = widget
 
         # if positioning before last focused, add widget between last_focused and last_focused.prev
         elif position == "before":
-            prev = self.last_focused.prev
-            self.last_focused.prev = widget
-            widget.next = self.last_focused
+            prev = relative_to.prev
+            relative_to.prev = widget
+            widget.next = relative_to
             widget.prev = prev
 
             if prev:

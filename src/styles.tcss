@@ -11,15 +11,21 @@ DirectoryNav {
 
 ButtonRow {
     margin-left: 2;
+    height: auto;
 }
 
-FocusMarkdown, CopyTextArea {
+ButtonRow Button {
+    margin-right: 1;
+    width: auto;
+}
+
+Markdown, CopyTextArea {
     min-height: 4;
     height: auto;
     max-height: 30;
 }
 
-FocusMarkdown {
+Markdown {
     padding: 1;
     margin-left: 1;    
 }
@@ -28,13 +34,6 @@ CopyTextArea {
     width: 1fr;
     padding: 0 1;
     margin: 0;
-}
-
-#pretty-error-output {
-    width: 1fr;
-    padding: 1;
-    margin: 1;
-    background: $surface;
 }
 
 MarkdownCell {
@@ -56,29 +55,33 @@ CodeCell{
 
 OutputText {
     padding-left: 1;
-    padding-right: 5;
+    padding-right: 6;
     min-height: 1;
     max-height: 30;
     height: auto;
     width: 100%;
 }
 
-OutputJson  {
-    padding-top: 1;
-    padding-left: 1;
-    padding-right: 5;
-    min-height: 1;
-    max-height: 30;
-    height: auto;
-    width: 100%;
+#pretty-error-output, #pretty-json {
+    width: 1fr;
+    padding: 1;
+    margin: 1 1 0 1;
+    background: $surface;
 }
 
 #code-sidebar {
-    width: 5;
+    width: 6;
     padding: 0;
     margin: 0;
     height: auto;
     align: center middle;
+}
+
+#exec-count {
+    width: auto;
+    height: auto;
+    margin: 0 0 0 1;
+    padding: 0;
 }
 
 #run-button {
@@ -99,7 +102,7 @@ OutputJson  {
 }
 
 #output-collapse-button{
-    width: 5;
+    width: 6;
     height: auto;
     text-style: bold;
     border: none;
@@ -119,12 +122,6 @@ OutputJson  {
 #collapsed-display{
     margin: 1 0 0 1;
     padding: 0;
-}
-
-#exec-count {
-    width: auto;
-    height: auto;
-    margin: 0 0 0 1;
 }
 
 #cell-container {

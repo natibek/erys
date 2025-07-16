@@ -6,12 +6,6 @@ from typing import Any
 from cell import Cell, SplitTextArea
 
 
-class FocusMarkdown(Markdown):
-    """Focusable Markdown to contain markdown for markdown cell."""
-
-    can_focus = True
-
-
 class MarkdownCell(Cell):
     """Widget to contain markdown cells in a notebook"""
 
@@ -33,7 +27,7 @@ class MarkdownCell(Cell):
         self.input_text = SplitTextArea.code_editor(
             self.source, id="text", language="markdown", show_line_numbers=False
         )
-        self.markdown = FocusMarkdown(self.source, id="markdown")
+        self.markdown = Markdown(self.source, id="markdown")
 
     def compose(self) -> ComposeResult:
         """Compose with:
@@ -60,6 +54,7 @@ class MarkdownCell(Cell):
         """
         if self.switcher.current == "markdown":
             self.switcher.current = "text"
+            self.input_text.focus()
 
     def action_collapse(self) -> None:
         """Toggle the collapsed."""
