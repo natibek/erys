@@ -57,6 +57,7 @@ class CollapseLabel(Label):
         for line in split:
             if line != "":
                 return line
+
 class CopyTextArea(TextArea):
     def on_key(self, event: Key):
         match event.key:

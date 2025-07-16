@@ -241,7 +241,7 @@ class CodeCell(Cell):
         """Compose with:
             - VerticalGroup
                 - HorziontalGroup
-                    - HorizontalGroup (id=code-sidte)
+                    - HorizontalGroup (id=code-sidebar)
                         - CollapseLabel (id=collapse-button)
                         - Static (id=exec-count)
                     - ContentSwitcher (id=collapse-content)
@@ -314,6 +314,8 @@ class CodeCell(Cell):
             nb: the notebook json/dict format of the code cell.
             notebook: the `Notebook` object the code cell belongs too.
         
+        Returns: `CodeCell` from notebook format.
+
         Raises:
             AssertionError: if no notebook or bad notebook representation.
         """
