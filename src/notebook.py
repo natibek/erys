@@ -166,33 +166,11 @@ class Notebook(Container):
                     self.last_focused.focus()
                     return
             case "run-all":
-                # iterate over all the code cells and run them
-                for cell in self.cell_container.children:
-                    if isinstance(cell, CodeCell):
-                        await cell.run_cell()
-                self.last_focused.focus()
+                await self.run_all_cells()
             case "run-after":
-                if not self.last_focused:
-                    return
-
-                # iterate over all the code cells starting from (including) the current and run them
-                cell = self.last_focused
-                while cell:
-                    if isinstance(cell, CodeCell):
-                        await cell.run_cell()
-                    cell = cell.next
-                self.last_focused.focus()
-
+                await self.run_cells_after()
             case "run-before":
-                if not self.last_focused:
-                    return
-                # iterate over all the code cells up to (not including) the current and run them
-                for cell in self.cell_container.children:
-                    if cell == self.last_focused:
-                        break
-                    if isinstance(cell, CodeCell):
-                        await cell.run_cell()
-                self.last_focused.focus()
+                await self.run_cells_before()
 
     async def action_add_cell_after(self) -> None:
         """Add code cell after current cell."""
@@ -309,11 +287,12 @@ class Notebook(Container):
             clone.next = prev
             prev.prev = clone
 
+            # remove the original cell
+            self.last_focused.remove()
+
             # mount the new cloned cell in the new position
             await self.cell_container.mount(clone, before=clone.next)
 
-            # remove the original cell
-            self.last_focused.remove()
             self.last_focused = clone
             self.last_focused.focus()
 
@@ -359,6 +338,40 @@ class Notebook(Container):
         target.merge_cells_with_self(self._merge_list[1:])
         target.merge_select = False
         self._merge_list = []
+
+    async def run_all_cells(self) -> None:
+        """Run all code cells."""
+        # iterate over all the code cells and run them
+        for cell in self.cell_container.children:
+            if isinstance(cell, CodeCell):
+                await cell.run_cell()
+        self.last_focused.focus()
+
+    async def run_cells_after(self) -> None:
+        """Run code cells after currently focused cell (inclusive)."""
+        if not self.last_focused:
+            return
+
+        # iterate over all the code cells starting from (including) the current and run them
+        cell = self.last_focused
+        while cell:
+            if isinstance(cell, CodeCell):
+                await cell.run_cell()
+            cell = cell.next
+        self.last_focused.focus()
+
+
+    async def run_cells_before(self) -> None:
+        """Run code cells before currently focused cell (not inclusive)."""
+        if not self.last_focused:
+            return
+        # iterate over all the code cells up to (not including) the current and run them
+        for cell in self.cell_container.children:
+            if cell == self.last_focused:
+                break
+            if isinstance(cell, CodeCell):
+                await cell.run_cell()
+        self.last_focused.focus()
 
     def focus_notebook(self) -> None:
         """Defines what focusing on a notebook does. If there is a cell that was last focused,
