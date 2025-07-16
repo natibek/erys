@@ -191,15 +191,15 @@ class Notebook(Container):
                 self.last_focused.focus()
 
     async def action_add_cell_after(self) -> None:
-        """Action for binding that adds code cell after current cell."""
+        """Add code cell after current cell."""
         await self.add_cell(CodeCell, self.last_focused, "after")
 
     async def action_add_cell_before(self) -> None:
-        """Action for binding that adds code cell before current cell."""
+        """Add code cell before current cell."""
         await self.add_cell(CodeCell, self.last_focused, "before")
 
     def action_save_as(self) -> str:
-        """Action for binding that saves notebook as a new file."""
+        """Save notebook as a new file."""
         def check_save_as(path: str | None) -> None:
             """Callback function to save notebook if save as screen dismisses successfully.
             
@@ -219,7 +219,7 @@ class Notebook(Container):
         self.app.push_screen("save_as_screen", check_save_as)
 
     def action_save(self) -> None:
-        """Action for binding that saves notebook."""
+        """Save notebook."""
         # notebooks with path 'new_empty_terminal_notebook' were created by terminal-notebook
         # need save_as call to get file name
         if self.path == "new_empty_terminal_notebook":
@@ -230,7 +230,7 @@ class Notebook(Container):
             self.notify(f"{self.path} saved!")
 
     def action_delete_cell(self) -> None:
-        """Action for binding that deletes cell."""
+        """Delete cell."""
         if not self.last_focused: return
         
         # disconnect the cell from surrounding cells and find new cell to focus on
@@ -249,13 +249,13 @@ class Notebook(Container):
             self.last_focused.focus()
 
     def action_copy_cell(self) -> None:
-        """Action for binding that copied cell."""
+        """Copy cell."""
         if not self.last_focused: return
         # store serialized representation of copied cell
         self.last_copied = self.last_focused.to_nb()
     
     def action_cut_cell(self) -> None:
-        """Action for binding that cuts cell."""
+        """Cut cell."""
         if not self.last_focused: return
 
         # store serialized representation of cut cell and delete it
@@ -263,7 +263,7 @@ class Notebook(Container):
         self.action_delete_cell()
 
     async def action_paste_cell(self) -> None:
-        """Action for binding that pastes cut/copied cell."""
+        """Paste cut/copied cell."""
         if not self.last_copied: return
 
         # generate the `MarkdownCell` or `CodeCell` from the stored serialized copy.
@@ -279,7 +279,7 @@ class Notebook(Container):
         self.connect_widget(widget)
 
     async def action_move_up(self) -> None:
-        """Action for binding that moves the cell up."""
+        """Move the cell up."""
         if not self.last_focused: return 
 
         if self.last_focused.prev:
@@ -308,7 +308,7 @@ class Notebook(Container):
             self.last_focused.focus()
 
     async def action_move_down(self) -> None:
-        """Action for binding that moves the cell down."""
+        """Move the cell down."""
         if not self.last_focused: return 
 
         if self.last_focused.next:

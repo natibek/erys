@@ -55,7 +55,7 @@ class MarkdownCell(Cell):
             self.switcher.current = "text"
 
     def action_collapse(self) -> None:
-        """Action for the collapse cell binding. Toggle the collapsed."""
+        """Toggle the collapsed."""
         self.collapse_btn.collapsed = not self.collapse_btn.collapsed
 
     def escape(self, event: Key) -> None:

@@ -108,7 +108,7 @@ class SplitTextArea(CopyTextArea):
                 cell.escape(event)
     
     def action_split_cell(self) -> None:
-        """Action for split cell binding that creates new cell of the same type."""
+        """Creates new cell of the same type as parent."""
 
         # parent cell containing widget
         cell: Cell = self.parent.parent.parent
@@ -239,12 +239,12 @@ class Cell(VerticalGroup):
             self.styles.border_left = None
 
     def action_join_above(self) -> None:
-        """Action for join below binding that merges cell with the previous."""
+        """Merges cell with the previous cell."""
         if self.prev:
             self.prev.merge_cells_with_self([self])
 
     def action_join_below(self) -> None:
-        """Action for join below binding that merges cell with the next."""
+        """Merges cell with the next cell."""
         if self.next:
             self.merge_cells_with_self([self.next])
 

@@ -66,11 +66,11 @@ class SaveAsScreen(Screen[str | None]):
     def on_directory_tree_file_selected(
         self, event: DirectoryTree.FileSelected
     ) -> None:
-        """Directory tree file selected event handler that sets the file name for saving file to
+        """File selected event handler that sets the file name for saving file to
         the name of the selected file and updates the directory where the file will be saved.
         
         Args:
-            event: directory tree file selected event.
+            event: file selected event.
         """
         file_dir = event.path.parent
         self.cur_dir.update(f"Saving at: {file_dir}")
@@ -85,11 +85,11 @@ class SaveAsScreen(Screen[str | None]):
     def on_directory_tree_directory_selected(
         self, event: DirectoryTree.DirectorySelected
     ) -> None:
-        """Directory tree directory selected event handler that sets the directory where
+        """Directory selected event handler that sets the directory where
         file will be saved to the selected directory.
         
         Args:
-            event: directory tree directory selected event.
+            event: directory selected event.
         """
         self.dir_tree.path = event.path
         self.cur_dir.update(f"Saving at: {event.path}")

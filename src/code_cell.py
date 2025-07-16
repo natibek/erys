@@ -288,11 +288,11 @@ class CodeCell(Cell):
         )
 
     async def action_run_cell(self) -> None:
-        """Action for the run cell binding. Calls the `run_cell` function."""
+        """Calls the `run_cell` function."""
         self.run_worker(self.run_cell)
 
     def action_collapse(self) -> None:
-        """Action for the collapse cell binding. If the outputs or the code cell is not collapsed,
+        """Collapse the code cell. If the outputs or the code cell is not collapsed,
         collapse it; otherwise, toggle the collapsed state.
         """
         if not self.collapse_btn.collapsed or not self.output_collapse_btn.collapsed:
