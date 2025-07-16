@@ -34,13 +34,14 @@ class ButtonRow(HorizontalGroup):
         # yield Button("▶ ↓ Run After", id="run-after")
         yield Button("▶ Run All", id="run-all")
         yield Button("🔁 Restart", id="restart-shell")
+        yield Button("Switch Cell Type", id="switch-cell-type")
 
 
 class Notebook(Container):
     """Container representing a notebook."""
 
-    last_focused = None  # keep track of the last focused cell
-    last_copied = None  # keep track of the copied/cut cell
+    last_focused: CodeCell | MarkdownCell | None = None  # keep track of the last focused cell
+    last_copied: CodeCell | MarkdownCell | None = None  # keep track of the copied/cut cell
     _delete_stack = []
     _merge_list: list[CodeCell | MarkdownCell] = []  # list of the cells to be merged.
 
@@ -171,6 +172,8 @@ class Notebook(Container):
                 await self.run_cells_after()
             case "run-before":
                 await self.run_cells_before()
+            case "switch-cell-type":
+                await self.switch_cell_type()
 
     async def action_add_cell_after(self) -> None:
         """Add code cell after current cell."""
@@ -360,7 +363,6 @@ class Notebook(Container):
             cell = cell.next
         self.last_focused.focus()
 
-
     async def run_cells_before(self) -> None:
         """Run code cells before currently focused cell (not inclusive)."""
         if not self.last_focused:
@@ -371,6 +373,26 @@ class Notebook(Container):
                 break
             if isinstance(cell, CodeCell):
                 await cell.run_cell()
+        self.last_focused.focus()
+    
+    async def switch_cell_type(self) -> None:
+        """Swtich the cell type keeping the input text source."""
+        if not self.last_focused:
+            return
+
+        # get the source in the input text of the cell
+        src = self.last_focused.input_text.text
+        # get the type to swtich to and construct object
+        new_cell_type = MarkdownCell if isinstance(self.last_focused, CodeCell) else CodeCell
+        new_cell = new_cell_type(self, src)
+
+        # easiest solution is to mount after the cell that is switching then deleting the original
+        await self.cell_container.mount(new_cell, after=self.last_focused)
+        self.connect_widget(new_cell)
+
+        self.last_focused.disconnect()
+        self.call_after_refresh(self.last_focused.remove)
+        self.last_focused = new_cell
         self.last_focused.focus()
 
     def focus_notebook(self) -> None:

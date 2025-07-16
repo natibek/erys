@@ -9,7 +9,6 @@ NB Format: https://nbformat.readthedocs.io/en/latest/format_description.html
 1. Undo add/del cells
 1. Attaching to user kernel
 1. Execution time
-1. Switch between markdown and code cell
 
 #### Rendering
 1. Image output types
