@@ -4,19 +4,31 @@ from threading import Lock
 
 
 class NotebookKernel:
+    """Class for kernel for each notebook. Contains kernel manager and client used to
+    execute code.
+    """
     def __init__(self) -> None:
-        self.kernel_manager: KernelManager = KernelManager()
+        self.kernel_manager: KernelManager = KernelManager() # kernel manager
         self.kernel_manager.start_kernel()
 
-        self.kernel_client: BlockingKernelClient = self.kernel_manager.client()
+        self.kernel_client: BlockingKernelClient = self.kernel_manager.client() # kernel client
         self.kernel_client.start_channels()
 
-        self.execution_lock = Lock()
+        # lock to prevent data races when calling `run_code` for multiple cells asynchronously
+        self.execution_lock = Lock() 
 
-    def get_kernel_info(self):
+    def get_kernel_info(self) -> dict[str, str]:
+        """Get the kernel info for the notebook metadata. 
+        
+        Returns: the dictionary representing the kernel info.
+        """
         return {"name": self.kernel_manager.kernel_name}
 
-    def get_kernel_spec(self):
+    def get_kernel_spec(self) -> dict[str, str]:
+        """Get the kernel spec for the notebook metadata.
+        
+        Returns: the dictionary representing the kernel spec.
+        """
         try:
             spec = self.kernel_manager.kernel_spec
             return {
@@ -31,7 +43,11 @@ class NotebookKernel:
                 "name": "",
             }
 
-    def get_language_info(self):
+    def get_language_info(self) -> dict[str, Any]:
+        """Get the language info for the notebook metadata.
+        
+        Returns: the dictionary representing the language info.
+        """
         language_info = {}
         try:
             self.kernel_client.kernel_info()
@@ -43,10 +59,17 @@ class NotebookKernel:
             return language_info
 
     def run_code(self, code: str) -> list[dict[str, Any]]:
-        with self.execution_lock:
+        """Run provided code string with the kernel. Uses the iopub channel to get results.
+
+        Args:
+            code: code string.
+
+        Returns: the outputs of executing the code with the kernel.
+        """
+        with self.execution_lock: # acquire lock for executing code
             self.kernel_client.execute(code)
 
-            # Read the output
+            # Read the output from the iopub channel
             outputs = []
             execution_count = None
             while True:
@@ -54,6 +77,8 @@ class NotebookKernel:
                     msg = self.kernel_client.get_iopub_msg()
                     match msg["header"]["msg_type"]:
                         case "execute_input":
+                            # if no execute output is present for execution, execution count can
+                            # be found from the execute_input output
                             execution_count = msg["content"]["execution_count"]
                         case "display_data":
                             # {
@@ -132,14 +157,17 @@ class NotebookKernel:
             return outputs, execution_count
 
     def interrupt_kernel(self) -> None:
+        """Interrupt the kernel."""
         self.kernel_manager.interrupt_kernel()
 
     def restart_kernel(self) -> None:
+        """Restart the kernel."""
         self.kernel_client.stop_channels()
         self.kernel_manager.restart_kernel()
         self.kernel_client: BlockingKernelClient = self.kernel_manager.client()
         self.kernel_client.start_channels()
 
     def shutdown_kernel(self) -> None:
+        """Shutdown the kernel."""
         self.kernel_client.stop_channels()
         self.kernel_manager.shutdown_kernel()
