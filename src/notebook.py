@@ -1,14 +1,14 @@
 from textual.app import ComposeResult
-from textual.widgets import Button, TextArea, Markdown
+from textual.widgets import TextArea, Markdown
 from textual.containers import VerticalScroll, Container, HorizontalScroll
-from textual.events import Key, DescendantFocus
+from textual.events import Key, DescendantFocus, Click
 
 from typing import Any
 import json
 
 from markdown_cell import MarkdownCell
 from code_cell import CodeCell, CodeArea, OutputText, OutputJson, OutputError
-from cell import CopyTextArea, Cell
+from cell import CopyTextArea, Cell, StaticBtn
 from notebook_kernel import NotebookKernel
 
 MAX_UNDO_LEN = 20
@@ -19,23 +19,23 @@ class ButtonRow(HorizontalScroll):
     def compose(self) -> ComposeResult:
         """Composed with:
         - HorizontalGroup
-            - Button (id=add-code-cell)
-            - Button (id=add-markdown-cell)
-            - Button (id=run-before)
-            - Button (id=run-after)
-            - Button (id=run-all)
-            - Button (id=restart-shell)
+            - StaticBtn (id=add-code-cell)
+            - StaticBtn (id=add-markdown-cell)
+            - StaticBtn (id=run-before)
+            - StaticBtn (id=run-after)
+            - StaticBtn (id=run-all)
+            - StaticBtn (id=restart-shell)
 
         """
-        yield Button("➕ Code", id="add-code-cell")
-        yield Button("➕ Markdown", id="add-markdown-cell")
-        yield Button("▶ Run All", id="run-all")
-        yield Button("▲ Run Before", id="run-before")
-        yield Button("▼ Run After", id="run-after")
-        # yield Button("▶ ↑ Run Before", id="run-before")
-        # yield Button("▶ ↓ Run After", id="run-after")
-        yield Button("🔁 Restart", id="restart-shell")
-        yield Button("Toggle Cell Type", id="toggle-cell-type")
+        yield StaticBtn("➕ Code", id="add-code-cell")
+        yield StaticBtn("➕ Markdown", id="add-markdown-cell")
+        yield StaticBtn("▶ Run All", id="run-all")
+        yield StaticBtn("▲ Run Before", id="run-before")
+        yield StaticBtn("▼ Run After", id="run-after")
+        # yield StaticBtn("▶ ↑ Run Before", id="run-before")
+        # yield StaticBtn("▶ ↓ Run After", id="run-after")
+        yield StaticBtn("🔁 Restart", id="restart-shell")
+        yield StaticBtn("Toggle Cell Type", id="toggle-cell-type")
 
 
 class Notebook(Container):
@@ -142,13 +142,13 @@ class Notebook(Container):
                 if self.last_focused and (next_cell := self.last_focused.next):
                     next_cell.focus()
 
-    async def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Button pressed event handler for button row on top of notebook.
+    async def on_click(self, event: Click) -> None:
+        """Click event handler for button row on top of notebook.
 
         Args:
-            event: button pressed event.
+            event: click event.
         """
-        match event.button.id:
+        match event.widget.id:
             case "add-code-cell":
                 widget = await self.add_cell(CodeCell, self.last_focused, "after")
                 self.call_after_refresh(widget.open)

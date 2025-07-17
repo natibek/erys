@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import tempfile
+import webbrowser
 import base64
 from io import BytesIO
 from PIL import Image
@@ -14,7 +16,7 @@ import re
 from textual.events import Key, DescendantBlur, Click, Enter, Leave
 from rich.text import Text
 from notebook_kernel import NotebookKernel
-from cell import CopyTextArea, SplitTextArea, Cell, COLLAPSED_COLOR, EXPANDED_COLOR
+from cell import CopyTextArea, SplitTextArea, Cell, StaticBtn, COLLAPSED_COLOR, EXPANDED_COLOR
 
 
 class OutputCollapseLabel(Label):
@@ -146,21 +148,6 @@ class OutputText(CopyTextArea):
         """Remove border when focused."""
         self.styles.border = None
 
-class ImgStaticBtn(Static):
-    """Widget to use as button to show image when clicked in the `OutputImage` widget."""
-
-    def on_click(self, event: Click):
-        """Show the image when clicked."""
-        parent: OutputImage = self.parent
-        parent.image.show()
-    
-    def on_enter(self, event: Enter):
-        """Add left border when hovering over."""
-        self.styles.border_left = "solid", "gray"
-    
-    def on_leave(self, event: Leave):
-        """Remove borders when mouse leaves."""
-        self.styles.border = None
 
 class OutputImage(HorizontalGroup):
     """Widget for displaying image/png output for code cells."""
@@ -174,7 +161,7 @@ class OutputImage(HorizontalGroup):
         self.decoded = BytesIO(base64.b64decode(base64_data))
         self.image = Image.open(self.decoded)
 
-        self.display_img_btn = ImgStaticBtn(content="🖼 Img", id="display-img-btn").with_tooltip("Press to display image")
+        self.display_img_btn = StaticBtn(content="🖼 Img", id="display-img-btn").with_tooltip("Press to display image")
 
     def compose(self) -> ComposeResult:
         """Composed with:
@@ -182,6 +169,55 @@ class OutputImage(HorizontalGroup):
             - ImageStaticBtn (id=display-img-btn)
         """
         yield self.display_img_btn
+
+    def on_click(self, event: Click):
+        """Method to display the image when `StaticBtn` is clicked. Called from `StaticBtn` when it
+        is clicked.
+        
+        Args:
+            event: the original click event from the `StaticBtn`.
+        """
+        if event.widget == self.display_img_btn:
+            self.image.show()
+            event.stop()
+
+
+class OutputHTML(HorizontalGroup):
+    """Widget for displaying html output for code cells."""
+    can_focus = True
+
+    def __init__(self, data: list[str] | str) -> None:
+        super().__init__()
+        # image from kernel is returned as a base64 encoded data
+        if isinstance(data, list):
+            self.data = "".join(data)
+        else:
+            self.data = data
+
+        self.display_img_btn = StaticBtn(content="🖼 HTML", id="display-html-btn").with_tooltip("Press to display image")
+
+    def compose(self) -> ComposeResult:
+        """Composed with:
+        - HorizontalGroup
+            - ImageStaticBtn (id=display-html-btn)
+        """
+        yield self.display_img_btn
+
+    def on_click(self, event: Click):
+        """Method to display html when `StaticBtn` is clicked. Called from `StaticBtn` when it
+        is clicked.
+        
+        Args:
+            event: the original click event from the `StaticBtn`.
+        """
+        if event.widget == self.display_img_btn:
+            with tempfile.NamedTemporaryFile('w', delete=False, suffix='.html') as f:
+                f.write(self.data)
+                url = 'file://' + f.name
+
+            # Open in default browser
+            webbrowser.open(url)
+            event.stop()
 
 
 class OutputError(HorizontalGroup):
@@ -271,10 +307,9 @@ class CodeCell(Cell):
         cell_id: str | None = None,
         language: str = "Python",
     ) -> None:
-        super().__init__(notebook, source, metadata, cell_id)
+        super().__init__(notebook, source, language, metadata, cell_id)
         self.outputs: list[dict[str, Any]] = outputs
         self.exec_count = exec_count
-        self._language = language
         self.switcher = ContentSwitcher(id="collapse-content", initial="text")
 
         self.run_label = RunLabel(id="run-button")
@@ -500,20 +535,12 @@ class CodeCell(Cell):
                                 # display the images with the `OutputImage` widget
                                 metadata = output["metadata"]
                                 self.outputs_group.mount(OutputImage(data, metadata))
+                            case "text/html":
+                                # display the html douput with the `OutputHTHML` widget
+                                self.outputs_group.mount(OutputHTML(data))
+
 
         self.refresh()
-
-    def display_img(self, base64_data, metadata: dict[str, Any]) -> None:
-        """Method for displaying image outputs from cell execution using Pillow.
-
-        Args:
-            base64_data: base64 encoded multiline png data
-            metadata: dictionary containing width and height of the image
-        """
-        decoded = BytesIO(base64.b64decode(base64_data))
-        image = Image.open(decoded)
-        self.notebook._image_queue.put((image, str(self.exec_count)))
-        # image.show()
 
     async def run_cell(self) -> None:
         """Run code in code cell with the kernel in a thread. Update the outputs and the

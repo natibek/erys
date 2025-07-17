@@ -18,7 +18,7 @@ class MarkdownCell(Cell):
         metadata: dict[str, Any] = {},
         cell_id: str | None = None,
     ) -> None:
-        super().__init__(notebook, source, metadata, cell_id)
+        super().__init__(notebook, source, "markdown", metadata, cell_id)
         self.collapse_btn.styles.width = 5
         self.switcher = ContentSwitcher(id="collapse-content", initial="markdown")
         self.collapsed_markdown = Static(

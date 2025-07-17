@@ -14,9 +14,11 @@ ButtonRow {
     height: auto;
 }
 
-ButtonRow Button {
-    margin-right: 1;
+ButtonRow StaticBtn {
+    margin-right: 2;
     width: auto;
+    padding: 0;
+    border-bottom: gray solid
 }
 
 Markdown, CopyTextArea {
@@ -69,7 +71,7 @@ OutputText {
     background: $surface;
 }
 
-#display-img-btn {
+StaticBtn {
     width: auto;
     padding: 1;
     margin: 0 1 0 1;

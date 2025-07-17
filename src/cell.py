@@ -1,5 +1,5 @@
-from textual.widgets import TextArea, Label, ContentSwitcher, Static
-from textual.events import MouseDown, Key, Enter, Leave
+from textual.widgets import TextArea, Label, Static
+from textual.events import MouseDown, Key, Enter, Leave, Click
 from textual.reactive import var
 from textual.containers import VerticalGroup
 
@@ -17,6 +17,18 @@ EXPANDED_COLOR = "white"
 def get_cell_id(id_length=8):
     """Generate the cell id for cells in notebook."""
     return uuid.uuid4().hex[:id_length]
+
+
+class StaticBtn(Static):
+    """Widget to use as button instead of textual's `Button`."""
+    
+    def on_enter(self, event: Enter):
+        """Add left border when hovering over."""
+        self.styles.border_left = "solid", "gray"
+    
+    def on_leave(self, event: Leave):
+        """Remove borders when mouse leaves."""
+        self.styles.border = None
 
 
 class CollapseLabel(Label):
@@ -157,7 +169,8 @@ class Cell(VerticalGroup):
     def __init__(
         self,
         notebook,
-        source: str = "",
+        source: str,
+        language: str,
         metadata: dict[str, Any] = {},
         cell_id: str | None = None,
     ) -> None:
@@ -168,6 +181,7 @@ class Cell(VerticalGroup):
         self._cell_id = cell_id or get_cell_id()
         self.id = f"_{self._cell_id}"
         self._collapsed = metadata.get("collapsed", False)
+        self._language = language
 
         self.collapse_btn = CollapseLabel(
             self, collapsed=self._collapsed, id="collapse-button"

@@ -9,7 +9,6 @@ NB Format: https://nbformat.readthedocs.io/en/latest/format_description.html
 
 #### Rendering
 1. Mime output types
-1. Render text/html table to a rich table
 
 ## Todo Coming Features
 1. Read config for themes and key bindings
