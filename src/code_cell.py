@@ -1,4 +1,9 @@
 from __future__ import annotations
+
+import base64
+from io import BytesIO
+from PIL import Image
+
 from asyncio import to_thread
 from textual.app import ComposeResult
 from textual.reactive import var
@@ -6,6 +11,7 @@ from textual.containers import HorizontalGroup, VerticalGroup
 from textual.widgets import Static, Label, ContentSwitcher, Pretty
 from typing import Any
 import re
+import matplotlib.pyplot as plt
 from textual.events import Key, DescendantBlur
 from rich.text import Text
 from notebook_kernel import NotebookKernel
@@ -454,10 +460,22 @@ class CodeCell(Cell):
                             case "application/json":
                                 # json is displayed with the `OutputJson` widget
                                 self.outputs_group.mount(OutputJson(data))
-                            case "img/png":
-                                self.outputs_group.mount(OutputJson(data))
+                            case "image/png":
+                                metadata = output["metadata"]
+                                self.display_img(data, metadata)
 
         self.refresh()
+
+    def display_img(self, base64_data, metadata: dict[str, Any]) -> None:
+        """Method for displaying image outputs from cell execution using Pillow.
+
+        Args:
+            base64_data: base64 encoded multiline png data
+            metadata: dictionary containing width and height of the image
+        """
+        decoded = BytesIO(base64.b64decode(base64_data))
+        image = Image.open(decoded)
+        image.show()
 
     async def run_cell(self) -> None:
         """Run code in code cell with the kernel in a thread. Update the outputs and the
