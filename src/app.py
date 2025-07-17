@@ -213,6 +213,11 @@ class TerminalNotebook(App):
         self.dir_tree.display = not self.dir_tree.display
         if self.dir_tree.display:
             self.set_focus(self.dir_tree)
+        elif cur_notebook := self.switcher.current:
+            notebook = self.switcher.query_one(
+                f"#{cur_notebook}", Notebook
+            )
+            self.call_next(notebook.focus_notebook)
         else:
             self.set_focus(self.tabs)
 

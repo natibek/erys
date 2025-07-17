@@ -4,7 +4,6 @@ from textual.containers import VerticalScroll, Container, HorizontalScroll
 from textual.events import Key, DescendantFocus
 
 from typing import Any
-import matplotlib
 import json
 
 from markdown_cell import MarkdownCell

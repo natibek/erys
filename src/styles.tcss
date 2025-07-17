@@ -62,11 +62,17 @@ OutputText {
     width: 100%;
 }
 
-#pretty-error-output, #pretty-json {
+#pretty-error-output, #pretty-json{
     width: 1fr;
     padding: 1;
     margin: 1 1 0 1;
     background: $surface;
+}
+
+#display-img-btn {
+    width: auto;
+    padding: 1;
+    margin: 0 1 0 1;
 }
 
 #code-sidebar {

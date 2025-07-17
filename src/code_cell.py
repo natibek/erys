@@ -11,8 +11,7 @@ from textual.containers import HorizontalGroup, VerticalGroup
 from textual.widgets import Static, Label, ContentSwitcher, Pretty
 from typing import Any
 import re
-import matplotlib.pyplot as plt
-from textual.events import Key, DescendantBlur
+from textual.events import Key, DescendantBlur, Click, Enter, Leave
 from rich.text import Text
 from notebook_kernel import NotebookKernel
 from cell import CopyTextArea, SplitTextArea, Cell, COLLAPSED_COLOR, EXPANDED_COLOR
@@ -147,9 +146,46 @@ class OutputText(CopyTextArea):
         """Remove border when focused."""
         self.styles.border = None
 
+class ImgStaticBtn(Static):
+    """Widget to use as button to show image when clicked in the `OutputImage` widget."""
+
+    def on_click(self, event: Click):
+        """Show the image when clicked."""
+        parent: OutputImage = self.parent
+        parent.image.show()
+    
+    def on_enter(self, event: Enter):
+        """Add left border when hovering over."""
+        self.styles.border_left = "solid", "gray"
+    
+    def on_leave(self, event: Leave):
+        """Remove borders when mouse leaves."""
+        self.styles.border = None
+
+class OutputImage(HorizontalGroup):
+    """Widget for displaying image/png output for code cells."""
+
+    can_focus = True
+
+    def __init__(self, base64_data: str, metadata: dict[str, int]) -> None:
+        super().__init__()
+        # image from kernel is returned as a base64 encoded data
+        self.base64_data = base64_data
+        self.decoded = BytesIO(base64.b64decode(base64_data))
+        self.image = Image.open(self.decoded)
+
+        self.display_img_btn = ImgStaticBtn(content="🖼 Img", id="display-img-btn").with_tooltip("Press to display image")
+
+    def compose(self) -> ComposeResult:
+        """Composed with:
+        - HorizontalGroup
+            - ImageStaticBtn (id=display-img-btn)
+        """
+        yield self.display_img_btn
+
 
 class OutputError(HorizontalGroup):
-    """Widget for displaying error output_type for code cells."""
+    """Widget for displaying error output for code cells."""
 
     can_focus = True  # make widget focusable
 
@@ -461,8 +497,9 @@ class CodeCell(Cell):
                                 # json is displayed with the `OutputJson` widget
                                 self.outputs_group.mount(OutputJson(data))
                             case "image/png":
+                                # display the images with the `OutputImage` widget
                                 metadata = output["metadata"]
-                                self.display_img(data, metadata)
+                                self.outputs_group.mount(OutputImage(data, metadata))
 
         self.refresh()
 
@@ -475,7 +512,8 @@ class CodeCell(Cell):
         """
         decoded = BytesIO(base64.b64decode(base64_data))
         image = Image.open(decoded)
-        image.show()
+        self.notebook._image_queue.put((image, str(self.exec_count)))
+        # image.show()
 
     async def run_cell(self) -> None:
         """Run code in code cell with the kernel in a thread. Update the outputs and the
