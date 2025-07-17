@@ -92,7 +92,7 @@ class TerminalNotebook(App):
     CSS_PATH = "styles.tcss"
     SCREENS = {"quit_screen": QuitScreen, "save_as_screen": SaveAsScreen}
     BINDINGS = [
-        ("n", "new_notebook", "New Notebook"),
+        ("ctrl+n", "new_notebook", "New Notebook"),
         ("ctrl+k", "close", "Close Notebook"),
         ("ctrl+l", "clear", "Clear Tabs"),
         ("d", "toggle_directory_tree", "Toggle Directory Tree"),
@@ -281,7 +281,9 @@ class TerminalNotebook(App):
         self.tab_to_nb_id_map[path] = tab_id
         self.cur_tab += 1
 
-
-if __name__ == "__main__":
+def main():
     app = TerminalNotebook(sys.argv[1:])
     app.run()
+
+if __name__ == "__main__":
+    main()

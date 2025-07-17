@@ -1,7 +1,8 @@
 from textual.widgets import TextArea, Label, Static
-from textual.events import MouseDown, Key, Enter, Leave, Click
+from textual.events import MouseDown, Key, Enter, Leave
 from textual.reactive import var
 from textual.containers import VerticalGroup
+from textual.binding import Binding
 
 from time import time
 import pyperclip
@@ -161,9 +162,9 @@ class Cell(VerticalGroup):
     cell_type = ""
 
     BINDINGS = [
-        ("c", "collapse", "Collapse Cell"),
-        ("ctrl+pageup", "join_above", "Join with Above"),
-        ("ctrl+pagedown", "join_below", "Join with Below"),
+        Binding("c", "collapse", "Collapse Cell", False),
+        Binding("ctrl+pageup", "join_above", "Join with Above", False),
+        Binding("ctrl+pagedown", "join_below", "Join with Below", False),
     ]
 
     def __init__(
@@ -201,7 +202,8 @@ class Cell(VerticalGroup):
 
     def _on_focus(self):
         """Focus event handler that adds border."""
-        self.styles.border_left = "solid", "lightblue"
+        if not self.merge_select:
+            self.styles.border_left = "solid", "lightblue"
         # self.styles.border = "solid", "lightblue"
         # self.border_subtitle = self._language
 
@@ -244,13 +246,6 @@ class Cell(VerticalGroup):
         elif now - self._last_click_time <= DOUBLE_CLICK_INTERVAL:
             self.on_double_click(event)
         self._last_click_time = now
-        if event.ctrl:
-            if not self.merge_select:
-                self.notebook._merge_list.append(self)
-            else:
-                self.notebook._merge_list.remove(self)
-
-            self.merge_select = not self.merge_select
 
     def watch_merge_select(self, selected: bool) -> None:
         """Watcher method that updates the border of the cell depending on whether it is selected

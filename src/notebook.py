@@ -2,6 +2,7 @@ from textual.app import ComposeResult
 from textual.widgets import TextArea, Markdown
 from textual.containers import VerticalScroll, Container, HorizontalScroll
 from textual.events import Key, DescendantFocus, Click
+from textual.binding import Binding
 
 from typing import Any
 import json
@@ -47,17 +48,17 @@ class Notebook(Container):
     _merge_list: list[Cell] = []  # list of the cells to be merged.
 
     BINDINGS = [
-        ("a", "add_cell_after", "Add Cell After"),
-        ("b", "add_cell_before", "Add Cell Before"),
-        ("t", "toggle_cell", "Toggle Cell Type"),
-        ("ctrl+up", "move_up", "Move Cell Up"),
-        ("ctrl+down", "move_down", "Move Cell Down"),
-        ("M", "merge_cells", "Merge Cells"),
-        ("ctrl+u", "undo", "Undo Delete"),
-        ("ctrl+c", "copy_cell", "Copy Cell"),
-        ("ctrl+x", "cut_cell", "Cut Cell"),
-        ("ctrl+v", "paste_cell", "Paste Cell"),
+        Binding("a", "add_cell_after", "Add Cell After", False),
+        Binding("b", "add_cell_before", "Add Cell Before", False),
+        Binding("t", "toggle_cell", "Toggle Cell Type", False),
         ("ctrl+d", "delete_cell", "Delete Cell"),
+        ("ctrl+u", "undo", "Undo Delete"),
+        Binding("ctrl+up", "move_up", "Move Cell Up", False),
+        Binding("ctrl+down", "move_down", "Move Cell Down", False),
+        Binding("M", "merge_cells", "Merge Cells", False),
+        Binding("ctrl+c", "copy_cell", "Copy Cell", False),
+        Binding("ctrl+x", "cut_cell", "Cut Cell", False),
+        Binding("ctrl+v", "paste_cell", "Paste Cell", False),
         ("ctrl+s", "save", "Save"),
         ("ctrl+w", "save_as", "Save As"),
     ]
@@ -117,6 +118,8 @@ class Notebook(Container):
             for widgetType in [Markdown, CopyTextArea, CodeArea]
         ):
             self.last_focused = event.widget.parent.parent.parent
+        elif self.last_focused:
+            self.last_focused.focus()
 
     def on_key(self, event: Key) -> None:
         """Key event handler that
@@ -240,13 +243,14 @@ class Notebook(Container):
             return
 
         # generate the `MarkdownCell` or `CodeCell` from the stored serialized copy.
+        # remove id and generate new to avoid conflict during copy/paste
+        self.last_copied["id"] = None
         match self.last_copied["cell_type"]:
             case "markdown":
                 widget = MarkdownCell.from_nb(self.last_copied, self)
             case "code":
                 widget = CodeCell.from_nb(self.last_copied, self)
 
-        widget.set_new_id()  # update id to avoid conflict during copy/paste
         # mount and connect the widget
         await self.cell_container.mount(widget, after=self.last_focused)
         self.connect_widget(widget)
@@ -449,9 +453,9 @@ class Notebook(Container):
         focus on it; otherwise, focus on the `cell_container`.
         """
         if self.last_focused:
-            self.call_after_refresh(self.last_focused.focus)
+            self.last_focused.focus()
         else:
-            self.call_after_refresh(self.cell_container.focus)
+            self.cell_container.focus()
 
     def save_notebook(self, path: str) -> None:
         """Saves the notebook to the provided path.
