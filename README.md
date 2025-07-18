@@ -113,7 +113,7 @@ A running code cell can be interrupted by pressing the interrupt button `□` on
 > \* When these are rendered as outputs from code execution, focus on them to get the plain text output.
 > The plain text output supports copying content.
 
-![Pretty and plain error](https://raw.githubusercontent.com/natibek/erys/main/data/pretty-plain-error.webm)
+![Pretty and plain error](https://raw.githubusercontent.com/natibek/erys/main/data/pretty-plain-error.gif)
 
 **`Erys`** parses image/png and text/html outputs from code cell execution and renders them outside of the 
 terminal. Press on the `🖼 IMG` and `🖼 HTML` buttons to render them respectively. Images are rendered
