@@ -188,7 +188,7 @@ The new cell will have a different id than the original. Cut can be undone.
 |ctrl+u| Undo Delete \*|
 |ctrl+up| Move Cell Up|
 |ctrl+down| Move Cell Down|
-|M| Merge Cells \*\*|
+|M| Merge Cells|
 |ctrl+c| Copy Cell|
 |ctrl+x| Cut Cell|
 |ctrl+v| Paste Cell|
