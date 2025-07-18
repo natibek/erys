@@ -305,7 +305,7 @@ class CodeCell(Cell):
     """Widget to contain code cells in a notebook"""
 
     BINDINGS = [
-        ("r", "run_cell", "Run Cell"),
+        ("ctrl+r", "run_cell", "Run Cell"),
     ]
     exec_count: int | None = var(
         None, init=False

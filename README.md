@@ -210,7 +210,7 @@ The new cell will have a different id than the original. Cut can be undone.
 
 |Key Binding|Function|
 |:-:|:-:|
-|r| Run|
+|ctrl+r|Run Code Cell|
 
 ### Text Area Bindings:
 |Key Binding|Function|

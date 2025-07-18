@@ -1,4 +1,6 @@
 .venv/
+.test_venv/
+.dev_venv/
 sample*.py
 test_*.py
 *.ipynb
