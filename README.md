@@ -1,6 +1,6 @@
 # ***`Erys`***: Terminal Interface for Jupyter Notebooks.
 
-![Demo](https://raw.githubusercontent.com/natibek/erys/main/data/demo.webm)
+![Demo](https://raw.githubusercontent.com/natibek/erys/main/data/demo.gif)
 
 **`Erys`** is a tool for opening, creating, editing, running, interacting with, and
 saving Jupyter Notebooks in the terminal. It uses [Textual](https://textual.textualize.io/)
@@ -138,7 +138,7 @@ The `Markdown` and `Code` cells have useful features:
 1. Splitting: A cell will be split with the text up to the cursor's position (not inclusive) kept in the
 current cell and the text starting from the cursor's position (inclusive) used to create a new cell.
 
-![Splitting](https://raw.githubusercontent.com/natibek/erys/main/data/splitting.webm)
+![Splitting](https://raw.githubusercontent.com/natibek/erys/main/data/splitting.gif)
 
 1. Joining with cell before and after: A cell can be joined with the cell before or after it.
 
@@ -146,7 +146,7 @@ current cell and the text starting from the cursor's position (inclusive) used t
 by holding down `ctrl` and selecting with the mouse. The content of first selected cell will appear first in the final merged cell. The resulting
 cell wil be of the same type as the first selected cell. The cells selected for merging will be highlighted.
 
-![Merging](https://raw.githubusercontent.com/natibek/erys/main/data/merging.webm)
+![Merging](https://raw.githubusercontent.com/natibek/erys/main/data/merging.gif)
 
 1. Toggle cell type: The cell types can be swtiched back and forth.
 
@@ -154,7 +154,7 @@ cell wil be of the same type as the first selected cell. The cells selected for 
 
 1. Moving: A cell can be moved up and down the notebook.
 
-![Moving](https://raw.githubusercontent.com/natibek/erys/main/data/move_cell.webm)
+![Moving](https://raw.githubusercontent.com/natibek/erys/main/data/move_cell.gif)
 
 1. Copy/Cut Paste: A cell can be copied or cut and pasted. It is pasted after the currently focused cell. 
 The new cell will have a different id than the original. Cut can be undone.
