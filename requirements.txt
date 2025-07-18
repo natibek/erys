@@ -1,5 +1,3 @@
-textual~=3.7.0
-textual[syntax]
+textual[syntax]~=4.0.0
 pyperclip~=1.9.0
-ipykernel~=6.29.5
 jupyter_client~=8.6.3

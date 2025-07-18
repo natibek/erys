@@ -5,3 +5,5 @@ test_*.py
 __pycache__/
 .ipynb_checkpoints/
 .ruff_cache/
+dist/
+*.egg-info/

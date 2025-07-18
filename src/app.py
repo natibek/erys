@@ -9,16 +9,17 @@ from textual.widgets import (
     Label,
     Button,
 )
+from textual.screen import Screen
+from textual.containers import Horizontal, Vertical, Grid
+from textual.events import Key
+
 from pathlib import Path
 import os.path
-
-from save_as_screen import SaveAsScreen
-from textual.screen import Screen
-from textual.reactive import reactive
-from textual.containers import Horizontal, Vertical, Grid
-from notebook import Notebook
-from textual.events import Key
 import sys
+
+
+from .notebook import Notebook
+from .save_as_screen import SaveAsScreen
 
 
 class QuitScreen(Screen):
@@ -86,10 +87,10 @@ class DirectoryNav(DirectoryTree):
         self.path = Path(event.path).resolve()
 
 
-class TerminalNotebook(App):
+class Erys(App):
     """A Textual app for editing and running Python notebooks."""
 
-    CSS_PATH = "styles.tcss"
+    CSS_PATH = "./styles.tcss"
     SCREENS = {"quit_screen": QuitScreen, "save_as_screen": SaveAsScreen}
     BINDINGS = [
         ("ctrl+n", "new_notebook", "New Notebook"),
@@ -214,9 +215,7 @@ class TerminalNotebook(App):
         if self.dir_tree.display:
             self.set_focus(self.dir_tree)
         elif cur_notebook := self.switcher.current:
-            notebook = self.switcher.query_one(
-                f"#{cur_notebook}", Notebook
-            )
+            notebook = self.switcher.query_one(f"#{cur_notebook}", Notebook)
             self.call_next(notebook.focus_notebook)
         else:
             self.set_focus(self.tabs)
@@ -281,9 +280,11 @@ class TerminalNotebook(App):
         self.tab_to_nb_id_map[path] = tab_id
         self.cur_tab += 1
 
+
 def main():
-    app = TerminalNotebook(sys.argv[1:])
+    app = Erys(sys.argv[1:])
     app.run()
+
 
 if __name__ == "__main__":
     main()

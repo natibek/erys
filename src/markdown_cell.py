@@ -2,8 +2,10 @@ from textual.app import ComposeResult
 from textual.widgets import Markdown, Static, ContentSwitcher
 from textual.events import Key, MouseDown
 from textual.containers import HorizontalGroup
+
 from typing import Any
-from cell import Cell, SplitTextArea
+
+from .cell import Cell, SplitTextArea
 
 
 class MarkdownCell(Cell):

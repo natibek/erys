@@ -22,11 +22,11 @@ def get_cell_id(id_length=8):
 
 class StaticBtn(Static):
     """Widget to use as button instead of textual's `Button`."""
-    
+
     def on_enter(self, event: Enter):
         """Add left border when hovering over."""
         self.styles.border_left = "solid", "gray"
-    
+
     def on_leave(self, event: Leave):
         """Remove borders when mouse leaves."""
         self.styles.border = None

@@ -3,9 +3,10 @@ from textual.widgets import Static, DirectoryTree, Input
 from textual.containers import Vertical
 from textual.screen import Screen
 from textual.events import Key, ScreenResume
+from textual.validation import ValidationResult, Validator
+
 from pathlib import Path
 from typing import Iterable
-from textual.validation import ValidationResult, Validator
 
 
 class NotebookName(Validator):

@@ -7,12 +7,14 @@ from textual.binding import Binding
 from typing import Any
 import json
 
-from markdown_cell import MarkdownCell
-from code_cell import CodeCell, CodeArea, OutputText, OutputJson, OutputError
-from cell import CopyTextArea, Cell, StaticBtn
-from notebook_kernel import NotebookKernel
+from .markdown_cell import MarkdownCell
+from .code_cell import CodeCell, CodeArea, OutputText, OutputJson, OutputError
+from .cell import CopyTextArea, Cell, StaticBtn
+from .notebook_kernel import NotebookKernel
+
 
 MAX_UNDO_LEN = 20
+
 
 class ButtonRow(HorizontalScroll):
     """Buttton row on top of Notebook"""
@@ -92,9 +94,16 @@ class Notebook(Container):
 
         self.call_after_refresh(self.focus_notebook)
 
+        if not self.notebook_kernel.initialized:
+            self.notify(
+                "[bold]ipykernel[/] missing from python environment in current workind directory",
+                severity="error",
+                timeout=10,
+            )
+
     def on_unmount(self) -> None:
         """Unmount event handler that shuts down kernel if avaialble."""
-        if self.notebook_kernel:
+        if self.notebook_kernel.initialized:
             self.notebook_kernel.shutdown_kernel()
 
     def on_descendant_focus(self, event: DescendantFocus) -> None:
@@ -328,11 +337,11 @@ class Notebook(Container):
         target.merge_cells_with_self(self._merge_list[1:])
         target.merge_select = False
         self._merge_list = []
-    
+
     async def action_toggle_cell(self) -> None:
         """Callback for binding to swtich the cell type keeping the input text source."""
         await self.toggle_cell_type()
-    
+
     def action_undo(self) -> None:
         """Callback for binding to undo deletion."""
         self.undo_delete()
@@ -343,10 +352,11 @@ class Notebook(Container):
         fails, just place relative to the `last_focused` cell. If the stored id is
         None, then widget was the only cell in the notebook when it was deleted.
         """
-        if len(self._delete_stack) == 0: return
+        if len(self._delete_stack) == 0:
+            return
 
         # get the last deleted cell
-        last_delete, position, relative_to_id  = self._delete_stack.pop()
+        last_delete, position, relative_to_id = self._delete_stack.pop()
 
         # recreate the deleted cell
         match last_delete["cell_type"]:
@@ -356,24 +366,26 @@ class Notebook(Container):
                 widget = CodeCell.from_nb(last_delete, self)
 
         if relative_to_id:
-            try: 
-            # attempt to find the cell to mount relative to
-                target_widget = self.cell_container.query_one(f"#{relative_to_id}", Cell)
+            try:
+                # attempt to find the cell to mount relative to
+                target_widget = self.cell_container.query_one(
+                    f"#{relative_to_id}", Cell
+                )
             except:
-            # if the query fails, the target position should be relative to the last_focused cell
+                # if the query fails, the target position should be relative to the last_focused cell
                 target_widget = self.last_focused
         else:
             target_widget = None
 
         # mount it relative to the target_widget
-        self.cell_container.mount(widget, **{position:target_widget})
+        self.cell_container.mount(widget, **{position: target_widget})
 
         # update the pointers of the widgets surrounding where it was mounted
         self.connect_widget(widget, target_widget, position)
 
     def delete_cell(self, remember: bool = True) -> None:
         """Delete a cell and keep track of it in the `_delete_stack` if remember is True.
-        
+
         Args:
             remember: whether to keep track of the deleted to undo later.
         """
@@ -386,9 +398,7 @@ class Notebook(Container):
         if remember:
             # add it to the `delete_stack` for undoing
             id = next_focus.id if next_focus else None
-            self._delete_stack.append(
-                (self.last_focused.to_nb(), position, id)
-            )
+            self._delete_stack.append((self.last_focused.to_nb(), position, id))
             if len(self._delete_stack) > MAX_UNDO_LEN:
                 self._delete_stack = self._delete_stack[-MAX_UNDO_LEN:]
 
@@ -431,7 +441,7 @@ class Notebook(Container):
             if isinstance(cell, CodeCell):
                 await cell.run_cell()
         self.last_focused.focus()
-    
+
     async def toggle_cell_type(self) -> None:
         """Swtich the cell type keeping the input text source."""
         if not self.last_focused:
@@ -440,7 +450,9 @@ class Notebook(Container):
         # get the source in the input text of the cell
         src = self.last_focused.input_text.text
         # get the type to swtich to and construct object
-        new_cell_type = MarkdownCell if isinstance(self.last_focused, CodeCell) else CodeCell
+        new_cell_type = (
+            MarkdownCell if isinstance(self.last_focused, CodeCell) else CodeCell
+        )
         new_cell = new_cell_type(self, src)
 
         # easiest solution is to mount after the cell that is switching then deleting the original

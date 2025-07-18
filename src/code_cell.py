@@ -1,22 +1,30 @@
 from __future__ import annotations
 
+from textual.app import ComposeResult
+from textual.reactive import var
+from textual.containers import HorizontalGroup, VerticalGroup
+from textual.widgets import Static, Label, ContentSwitcher, Pretty
+from textual.events import Key, DescendantBlur, Click
+
+import re
 import tempfile
 import webbrowser
 import base64
 from io import BytesIO
 from PIL import Image
-
 from asyncio import to_thread
-from textual.app import ComposeResult
-from textual.reactive import var
-from textual.containers import HorizontalGroup, VerticalGroup
-from textual.widgets import Static, Label, ContentSwitcher, Pretty
-from typing import Any
-import re
-from textual.events import Key, DescendantBlur, Click, Enter, Leave
 from rich.text import Text
-from notebook_kernel import NotebookKernel
-from cell import CopyTextArea, SplitTextArea, Cell, StaticBtn, COLLAPSED_COLOR, EXPANDED_COLOR
+from typing import Any
+
+from .notebook_kernel import NotebookKernel
+from .cell import (
+    CopyTextArea,
+    SplitTextArea,
+    Cell,
+    StaticBtn,
+    COLLAPSED_COLOR,
+    EXPANDED_COLOR,
+)
 
 
 class OutputCollapseLabel(Label):
@@ -161,7 +169,9 @@ class OutputImage(HorizontalGroup):
         self.decoded = BytesIO(base64.b64decode(base64_data))
         self.image = Image.open(self.decoded)
 
-        self.display_img_btn = StaticBtn(content="🖼 Img", id="display-img-btn").with_tooltip("Press to display image")
+        self.display_img_btn = StaticBtn(
+            content="🖼 Img", id="display-img-btn"
+        ).with_tooltip("Press to display image")
 
     def compose(self) -> ComposeResult:
         """Composed with:
@@ -173,7 +183,7 @@ class OutputImage(HorizontalGroup):
     def on_click(self, event: Click):
         """Method to display the image when `StaticBtn` is clicked. Called from `StaticBtn` when it
         is clicked.
-        
+
         Args:
             event: the original click event from the `StaticBtn`.
         """
@@ -184,6 +194,7 @@ class OutputImage(HorizontalGroup):
 
 class OutputHTML(HorizontalGroup):
     """Widget for displaying html output for code cells."""
+
     can_focus = True
 
     def __init__(self, data: list[str] | str) -> None:
@@ -194,7 +205,9 @@ class OutputHTML(HorizontalGroup):
         else:
             self.data = data
 
-        self.display_img_btn = StaticBtn(content="🖼 HTML", id="display-html-btn").with_tooltip("Press to display image")
+        self.display_img_btn = StaticBtn(
+            content="🖼 HTML", id="display-html-btn"
+        ).with_tooltip("Press to display image")
 
     def compose(self) -> ComposeResult:
         """Composed with:
@@ -206,14 +219,14 @@ class OutputHTML(HorizontalGroup):
     def on_click(self, event: Click):
         """Method to display html when `StaticBtn` is clicked. Called from `StaticBtn` when it
         is clicked.
-        
+
         Args:
             event: the original click event from the `StaticBtn`.
         """
         if event.widget == self.display_img_btn:
-            with tempfile.NamedTemporaryFile('w', delete=False, suffix='.html') as f:
+            with tempfile.NamedTemporaryFile("w", delete=False, suffix=".html") as f:
                 f.write(self.data)
-                url = 'file://' + f.name
+                url = "file://" + f.name
 
             # Open in default browser
             webbrowser.open(url)
@@ -539,21 +552,20 @@ class CodeCell(Cell):
                                 # display the html douput with the `OutputHTHML` widget
                                 self.outputs_group.mount(OutputHTML(data))
 
-
         self.refresh()
 
     async def run_cell(self) -> None:
         """Run code in code cell with the kernel in a thread. Update the outputs and the
         execution count for the cell.
         """
-        if (
-            not self.notebook.notebook_kernel
-        ):  # check if there is a kernel for the notebook
+        # check if there is a kernel for the notebook
+        if not self.notebook.notebook_kernel.initialized:
             self.notify(
-                "No kernel available for notebook.", severity="error", timeout=8
+                "[bold]ipykernel[/] missing from python environment in current workind directory.",
+                severity="error",
+                timeout=10,
             )
             return
-
         kernel: NotebookKernel = self.notebook.notebook_kernel
 
         self.source = self.input_text.text
@@ -569,9 +581,11 @@ class CodeCell(Cell):
 
     def interrupt_cell(self) -> None:
         """Interrupt kernel when running cell."""
-        if not self.notebook.notebook_kernel:
+        if not self.notebook.notebook_kernel.initialized:
             self.notify(
-                "No kernel available for notebook.", severity="error", timeout=8
+                "[bold]ipykernel[/] missing from python environment in current workind directory.",
+                severity="error",
+                timeout=10,
             )
             return
 

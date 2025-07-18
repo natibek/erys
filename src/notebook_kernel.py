@@ -11,13 +11,13 @@ class NotebookKernel:
     def __init__(self) -> None:
         # lock to prevent data races when calling `run_code` for multiple cells asynchronously
         self.execution_lock = Lock()
-        self.initialize()
-    
+        self.initialized = self.initialize()
+
     def initialize(self) -> bool:
         try:
             self.kernel_manager: KernelManager = KernelManager()  # kernel manager
             self.kernel_manager.start_kernel()
-            try: 
+            try:
                 self.kernel_client: BlockingKernelClient = (
                     self.kernel_manager.client()
                 )  # kernel client
@@ -27,7 +27,7 @@ class NotebookKernel:
                 return False
         except:
             return False
-        
+
         return True
 
     def get_kernel_info(self) -> dict[str, str]:
