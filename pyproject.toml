@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools >= 61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "erys"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Nathnael (Nati) Bekele"}
+]
+maintainers = [
+    {name = "Nathnael (Nati) Bekele"}
+]
+description = "Terminal interface for creating, editing, and running Jupyter Notebook"
+keywords = [
+    "jupyter notebook", "terminal", "textual", "notebook", "python", "tui"
+]
+dependencies = [
+    "textual[syntax]~=4.0.0",
+    "pyperclip~=1.9.0",
+    "jupyter_client~=8.6.3",
+    "pillow~=11.3.0",
+]
+readme = "README.md"
+dynamic = ["version"]
+requires-python = ">= 3.10"
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+]
+
+[project.urls]
+Homepage = "https://github.com/natibek/erys"
+Repository = "https://github.com/natibek/erys"
+Issues = "https://github.com/natibek/erys/issues"
+Readme = "https://github.com/natibek/erys/blob/main/README.md"
+Changelog = "https://github.com/natibek/erys/blob/main/CHANGELOG"
+
+[tool.setuptools.packages.find]
+include = ["src*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "src.__version__"}
+
+[project.scripts]
+erys = "src.app:main"
