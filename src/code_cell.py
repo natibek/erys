@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.reactive import var
-from textual.containers import HorizontalGroup, VerticalGroup
+from textual.containers import HorizontalGroup, VerticalGroup, VerticalScroll
 from textual.widgets import Static, Label, ContentSwitcher, Pretty
 from textual.events import Key, DescendantBlur, Click
 
@@ -237,7 +237,7 @@ class OutputHTML(HorizontalGroup):
             event.stop()
 
 
-class OutputAnsi(HorizontalGroup):
+class OutputAnsi(VerticalScroll):
     """Widget for displaying ansi output for code cells."""
 
     can_focus = True  # make widget focusable
@@ -269,6 +269,7 @@ class OutputAnsi(HorizontalGroup):
                 - CopyTextArea (id=plain-output)
         """
         self.switcher = ContentSwitcher(initial="pretty-output")
+        # with VerticalScroll(id="ansi-output-scroll"):
         with self.switcher:
             yield self.static_output
             yield self.text_output

@@ -107,7 +107,7 @@ class Erys(App):
         self.paths = [
             os.path.relpath(path, Path.cwd())
             for path in paths
-            if Path(path).is_file() and Path(path).suffix == ".ipynb"
+            if Path(path).suffix == ".ipynb" and (Path(path).exists() or Path(path).parent.is_dir())
         ]
         self.cur_tab = len(paths)
         self.tab_to_nb_id_map: dict[str, int] = {}  # maps from tab id to notebook id

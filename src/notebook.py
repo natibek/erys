@@ -6,6 +6,7 @@ from textual.binding import Binding
 
 from typing import Any
 import json
+from pathlib import Path
 
 from .markdown_cell import MarkdownCell
 from .code_cell import CodeCell, CodeArea, OutputText, OutputJson, OutputAnsi
@@ -68,7 +69,7 @@ class Notebook(Container):
     def __init__(self, path: str, id: str, term_app) -> None:
         super().__init__(id=id)
 
-        self.path = path
+        self.path = Path(path)
         self.notebook_kernel = NotebookKernel()
         self.term_app = term_app
 
@@ -90,7 +91,11 @@ class Notebook(Container):
     def on_mount(self) -> None:
         """Mount event handler that loads a notebook if path is provided."""
         if self.path != "new_empty_terminal_notebook":
-            self.call_after_refresh(self.load_notebook)
+            if self.path.exists():
+                self.call_after_refresh(self.load_notebook)
+            elif self.path.parent.is_dir():
+                with open(self.path, "w") as f:
+                    pass
 
         self.call_after_refresh(self.focus_notebook)
 

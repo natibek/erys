@@ -55,7 +55,7 @@ CodeCell{
     width: 100%;
 }
 
-OutputText {
+OutputAnsi, OutputText {
     min-height: 1;
     max-height: 20;
     height: auto;
