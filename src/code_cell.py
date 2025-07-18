@@ -269,7 +269,6 @@ class OutputAnsi(VerticalScroll):
                 - CopyTextArea (id=plain-output)
         """
         self.switcher = ContentSwitcher(initial="pretty-output")
-        # with VerticalScroll(id="ansi-output-scroll"):
         with self.switcher:
             yield self.static_output
             yield self.text_output

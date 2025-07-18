@@ -69,7 +69,7 @@ class Notebook(Container):
     def __init__(self, path: str, id: str, term_app) -> None:
         super().__init__(id=id)
 
-        self.path = Path(path)
+        self.path = path
         self.notebook_kernel = NotebookKernel()
         self.term_app = term_app
 
@@ -91,6 +91,7 @@ class Notebook(Container):
     def on_mount(self) -> None:
         """Mount event handler that loads a notebook if path is provided."""
         if self.path != "new_empty_terminal_notebook":
+            self.path = Path(self.path)
             if self.path.exists():
                 self.call_after_refresh(self.load_notebook)
             elif self.path.parent.is_dir():
@@ -202,7 +203,7 @@ class Notebook(Container):
     def action_save_as(self) -> str:
         """Save notebook as a new file."""
 
-        def check_save_as(path: str | None) -> None:
+        def check_save_as(path: Path | None) -> None:
             """Callback function to save notebook if save as screen dismisses successfully.
 
             Args:
@@ -215,7 +216,10 @@ class Notebook(Container):
                 self.save_notebook(path)
                 self.notify(f"{self.path} saved!")
                 # open the saved notebook
-                self.term_app.open_notebook(path)
+                
+                # change the tab name
+                self.term_app.change_tab_name(self.id, self.path)
+                # self.term_app.open_notebook(path)
 
         # push the save as screen with the above callback function
         self.app.push_screen("save_as_screen", check_save_as)

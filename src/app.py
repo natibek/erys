@@ -262,7 +262,29 @@ class Erys(App):
         self.tab_to_nb_id_map = {}
         self.switcher.current = None
 
+    def change_tab_name(self, tab_id: str, new_path: str) -> None:
+        """Update the key in the map from tab id to notebook id. Used when saving a new file to
+        update the map and the Tab label.
+        
+        Args:
+            tab_id: the tab id for the notebook with the new path.
+            new_path: the new path for the notebook.
+        """
+        if tab_id not in self.tab_to_nb_id_map:
+            pass
+
+        path = os.path.relpath(new_path, Path.cwd())
+        target_tab: Tab = self.tabs.query_one(f"#{tab_id}", Tab)
+        target_tab.update(path)
+
+
     def open_notebook(self, path: Path) -> None:
+        """Open a notebook. Either change tabs to the notebook if it is already loaded or 
+        create a new notebook in a new new and swtich to that tab.
+        
+        Args:
+            path: path to the notebook.
+        """
         path = os.path.relpath(path, Path.cwd())
 
         if path in self.tab_to_nb_id_map:
