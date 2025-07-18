@@ -216,7 +216,9 @@ The new cell will have a different id than the original. Cut can be undone.
 |Key Binding|Function|
 |:-:|:-:|
 |ctrl+backslash|Split Cell|
+|ctrl+r|Run Code Cell \*|
 
+> \* Only for `Code` Cell.
 ---
 
 ## Coming Features

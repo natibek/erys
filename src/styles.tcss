@@ -56,18 +56,16 @@ CodeCell{
 }
 
 OutputText {
-    padding-left: 1;
-    padding-right: 6;
     min-height: 1;
     max-height: 20;
     height: auto;
     width: 100%;
 }
 
-#pretty-error-output, #pretty-json{
+#pretty-output, #pretty-json{
     width: 1fr;
     padding: 1;
-    margin: 1 1 0 1;
+    margin: 0 1 1 1;
     background: $surface;
 }
 

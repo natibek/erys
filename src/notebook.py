@@ -8,7 +8,7 @@ from typing import Any
 import json
 
 from .markdown_cell import MarkdownCell
-from .code_cell import CodeCell, CodeArea, OutputText, OutputJson, OutputError
+from .code_cell import CodeCell, CodeArea, OutputText, OutputJson, OutputAnsi
 from .cell import CopyTextArea, Cell, StaticBtn
 from .notebook_kernel import NotebookKernel
 
@@ -119,7 +119,7 @@ class Notebook(Container):
             self.last_focused = event.widget
         elif any(
             isinstance(event.widget, widgetType)
-            for widgetType in [OutputJson, OutputText, OutputError]
+            for widgetType in [OutputJson, OutputText, OutputAnsi]
         ) or event.widget.id in ["pretty-error-output", "plain-error-output"]:
             self.last_focused = event.widget.parent.parent.parent.parent
         elif any(

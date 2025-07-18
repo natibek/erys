@@ -97,7 +97,11 @@ class CodeArea(SplitTextArea):
         Args:
             event: Key press event.
         """
-        if event.character in self.closing_map:
+        if event.key == "ctrl+r":
+            code_cell: CodeCell = self.parent.parent.parent
+            if not code_cell.run_label.running:
+                self.run_worker(code_cell.run_cell)
+        elif event.character in self.closing_map:
             self.insert(f"{event.character}{self.closing_map[event.character]}")
             self.move_cursor_relative(columns=-1)
             event.prevent_default()
@@ -233,60 +237,60 @@ class OutputHTML(HorizontalGroup):
             event.stop()
 
 
-class OutputError(HorizontalGroup):
-    """Widget for displaying error output for code cells."""
+class OutputAnsi(HorizontalGroup):
+    """Widget for displaying ansi output for code cells."""
 
     can_focus = True  # make widget focusable
 
-    def __init__(self, error_string: list[str]) -> None:
+    def __init__(self, ansi_string: list[str] | str) -> None:
         super().__init__()
-        error_string = "\n".join(error_string)  # comes as a multiline
-        self.plain_error_string = self.replace_ansi_escape_with_markup(
-            error_string, True
-        )  # remove the ansi
-        self.pretty_error_string = Text.from_ansi(
-            error_string
+        if isinstance(ansi_string, list):
+            text = "\n".join(ansi_string)
+        else:
+            text = ansi_string
+
+        self.plain_string = self.remove_ansi(text)  # remove the ansi
+        self.pretty_string = Text.from_ansi(
+            text
         )  # convert ansi to markup
 
         self.static_output = Static(
-            content=self.pretty_error_string, id="pretty-error-output"
+            content=self.pretty_string, id="pretty-output"
         )
         self.text_output = OutputText(
-            text=self.plain_error_string, id="plain-error-output"
+            text=self.plain_string, id="plain-output"
         )
 
     def compose(self) -> ComposeResult:
         """Composed of
         - HorizontalGroup
-            - Content switcher (initial=pretty-error-output)
-                - Pretty (id=pretty-error-output)
-                - CopyTextArea (id=plain-error-output)
+            - Content switcher (initial=pretty-output)
+                - Pretty (id=pretty-output)
+                - CopyTextArea (id=plain-output)
         """
-        self.switcher = ContentSwitcher(initial="pretty-error-output")
+        self.switcher = ContentSwitcher(initial="pretty-output")
         with self.switcher:
             yield self.static_output
             yield self.text_output
 
     def _on_focus(self) -> None:
-        """Switch to plain-error-output when focusing on widget."""
-        self.switcher.current = "plain-error-output"
+        """Switch to plain-output when focusing on widget."""
+        self.switcher.current = "plain-output"
 
     def on_descendant_blur(self, event: DescendantBlur) -> None:
-        """Switch to pretty-error-output when bluring away from descendants."""
-        self.switcher.current = "pretty-error-output"
+        """Switch to pretty-output when bluring away from descendants."""
+        self.switcher.current = "pretty-output"
 
     def _on_blur(self) -> None:
-        """Swtich to the pretty-error-output when bluring away from widget unless new focused
-        widget is the plain-error-output.
+        """Swtich to the pretty-output when bluring away from widget unless new focused
+        widget is the plain-output.
         """
         if not self.app.focused or self.app.focused != self.text_output:
-            self.switcher.current = "pretty-error-output"
+            self.switcher.current = "pretty-output"
 
-    def replace_ansi_escape_with_markup(
-        self, ansi_escaped_string: str, remove: bool = False
-    ) -> str:
-        """Returns the strings with ansi escapes replaced with markup if map is found but removed  if not
-        using regex. Used to remove color from error messages.
+    def remove_ansi(self, ansi_escaped_string: str) -> str:
+        """Returns the strings with ansi escapes removed using regex. Used to remove color from
+        code execution outputs.
 
         Args:
             ansi_escaped_string: input string containing ansi escapes.
@@ -294,9 +298,7 @@ class OutputError(HorizontalGroup):
         Returns: string without ansi escapes.
         """
         ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
-        return ansi_escape.sub(
-            "" if remove else self.substitute_with_markup, ansi_escaped_string
-        )
+        return ansi_escape.sub("" , ansi_escaped_string)
 
 
 class CodeCell(Cell):
@@ -349,7 +351,9 @@ class CodeCell(Cell):
             - HorziontalGroup
                 - HorizontalGroup (id=code-sidebar)
                     - CollapseLabel (id=collapse-button)
-                    - Static (id=exec-count)
+                    - VerticalGroup:
+                        - RunLabel (id=run-button)
+                        - Static (id=exec-count)
                 - ContentSwitcher (id=collapse-content)
                     - CodeArea (id=text)
                     - Static (id=collapsed-display)
@@ -522,25 +526,17 @@ class CodeCell(Cell):
             match output["output_type"]:
                 case "stream":
                     # join the strings and display them in the `OutputText` widget
-                    if isinstance(output["text"], list):
-                        text = "".join(output["text"])
-                    else:
-                        text = output["text"]
-                    self.outputs_group.mount(OutputText(text=text))
+                    self.outputs_group.mount(OutputAnsi(output["text"]))
                 case "error":
                     # display the errors with the `OutputError` widget
-                    self.outputs_group.mount(OutputError(output["traceback"]))
+                    self.outputs_group.mount(OutputAnsi(output["traceback"]))
                 case "execute_result" | "display_data":
                     # the display_data and output_result have different formats
                     for type, data in output["data"].items():
                         match type:
                             case "text/plain":
-                                # plain text can also use the `OutputText` widget for display
-                                if isinstance(data, list):
-                                    text = "".join(data)
-                                else:
-                                    text = data
-                                self.outputs_group.mount(OutputText(text=text))
+                                # plain text can also use the `OutputAnsi` widget for display
+                                self.outputs_group.mount(OutputAnsi(data))
                             case "application/json":
                                 # json is displayed with the `OutputJson` widget
                                 self.outputs_group.mount(OutputJson(data))
