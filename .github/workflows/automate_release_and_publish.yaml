@@ -1,0 +1,52 @@
+name: Publish package to PyPI and release to GitHub
+
+on:
+  workflow_dispatch: null
+  workflow_call: null
+  push:
+    branches:
+      - main
+    paths:
+      - '_version'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install twine wheel build
+      - name: Build and deploy wheels
+        env:
+          PYPI_API_KEY: ${{ secrets.PYPI_PSWRD }}
+        run: |
+          python -m build
+          twine upload dist/* -u __token__ -p "$PYPI_API_KEY"
+      
+  release:
+    name: Publish release on GitHub
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4 # allows workflow to access repo
+      - name: Set date for release title
+        run: echo today=$(date +"%B %d, %Y") >> $GITHUB_ENV # format date and append to env
+      - name: Set version number to most recent change
+        run: echo version=$(cat _version | grep -oP '[0-9\.]+') >> $GITHUB_ENV
+      - name: Create and publish release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ env.version }}
+          commit: ${{ github.sha }}
+          name: v${{ env.version }} ${{ env.today }} Release
+          generateReleaseNotes: true
+          makeLatest: true
