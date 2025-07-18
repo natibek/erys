@@ -114,7 +114,9 @@ class CopyTextArea(TextArea):
 class SplitTextArea(CopyTextArea):
     """Widget to contain text that can be split."""
 
-    BINDINGS = [("ctrl+backslash", "split_cell", "Split Cell")]
+    BINDINGS = [
+        ("ctrl+backslash", "split_cell", "Split Cell")
+    ]
 
     def on_key(self, event: Key) -> None:
         """Key event handler. Copy selected text to system clipboard. Call escape event handler
