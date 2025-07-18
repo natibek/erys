@@ -287,7 +287,7 @@ class Notebook(Container):
             prev.prev = clone
 
             # remove the original cell
-            self.last_focused.remove()
+            await self.last_focused.remove()
 
             # mount the new cloned cell in the new position
             await self.cell_container.mount(clone, before=clone.next)
@@ -318,11 +318,12 @@ class Notebook(Container):
             clone.next = next.next
             next.next = clone
 
+            # removes the cell from linked list
+            await self.last_focused.remove()
+
             # mount the new cloned cell in the new position
             await self.cell_container.mount(clone, after=clone.prev)
 
-            # removes the cell from linked list
-            self.last_focused.remove()
             self.last_focused = clone
             self.last_focused.focus()
 

@@ -165,8 +165,8 @@ class Cell(VerticalGroup):
 
     BINDINGS = [
         Binding("c", "collapse", "Collapse Cell", False),
-        Binding("ctrl+pageup", "join_above", "Join with Above", False),
-        Binding("ctrl+pagedown", "join_below", "Join with Below", False),
+        Binding("ctrl+pageup", "join_above", "Join with Before", False),
+        Binding("ctrl+pagedown", "join_below", "Join with After", False),
     ]
 
     def __init__(
