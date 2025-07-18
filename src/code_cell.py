@@ -557,7 +557,7 @@ class CodeCell(Cell):
         # check if there is a kernel for the notebook
         if not self.notebook.notebook_kernel.initialized:
             self.notify(
-                "[bold]ipykernel[/] missing from python environment in current workind directory.",
+                "[bold]ipykernel[/] missing from python environment in current working directory.",
                 severity="error",
                 timeout=10,
             )
@@ -579,7 +579,7 @@ class CodeCell(Cell):
         """Interrupt kernel when running cell."""
         if not self.notebook.notebook_kernel.initialized:
             self.notify(
-                "[bold]ipykernel[/] missing from python environment in current workind directory.",
+                "[bold]ipykernel[/] missing from python environment in current working directory.",
                 severity="error",
                 timeout=10,
             )

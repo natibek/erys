@@ -96,7 +96,7 @@ class Notebook(Container):
 
         if not self.notebook_kernel.initialized:
             self.notify(
-                "[bold]ipykernel[/] missing from python environment in current workind directory",
+                "[bold]ipykernel[/] missing from python environment in current working directory.",
                 severity="error",
                 timeout=10,
             )
