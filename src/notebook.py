@@ -15,6 +15,7 @@ from .notebook_kernel import NotebookKernel
 
 
 MAX_UNDO_LEN = 20
+DEFAULT_FILE_NAME = "erys_notebook"
 
 
 class ButtonRow(HorizontalScroll):
@@ -90,22 +91,24 @@ class Notebook(Container):
 
     def on_mount(self) -> None:
         """Mount event handler that loads a notebook if path is provided."""
-        if self.path != "new_empty_terminal_notebook":
+        if self.path[:len(DEFAULT_FILE_NAME)] != DEFAULT_FILE_NAME and not self.path[len(DEFAULT_FILE_NAME):].isdigit():
             self.path = Path(self.path)
             if self.path.exists():
                 self.call_after_refresh(self.load_notebook)
             elif self.path.parent.is_dir():
                 with open(self.path, "w") as f:
                     pass
+        else:
+            self.notebook_kernel.initialize()
+            if not self.notebook_kernel.initialized:
+                self.notify(
+                    "[bold]ipykernel[/] missing from python environment in current working directory.",
+                    severity="error",
+                    timeout=10,
+                )
+                return
 
         self.call_after_refresh(self.focus_notebook)
-
-        if not self.notebook_kernel.initialized:
-            self.notify(
-                "[bold]ipykernel[/] missing from python environment in current working directory.",
-                severity="error",
-                timeout=10,
-            )
 
     def on_unmount(self) -> None:
         """Unmount event handler that shuts down kernel if avaialble."""
@@ -494,7 +497,18 @@ class Notebook(Container):
         `MarkdownCell` objects from the serialized formats and mount them to the `cell_container`.
         """
         with open(self.path, "r") as notebook_file:
-            content = json.load(notebook_file)
+            # if the file is empty, trying to decode json will fail so early exit.
+            if self.path.stat().st_size == 0:
+                return
+
+            try:
+                # if the json decoding fails then the notebook is bad
+                content = json.load(notebook_file)
+            except json.JSONDecodeError:
+                self.notify(f"{self.path} is not a valid notebook. Failed to decode JSON.", severity="error")
+                self.term_app.remove_tab(str(self.path))
+                return
+
             for idx, cell in enumerate(content["cells"]):
                 if cell["cell_type"] == "code":
                     widget = CodeCell.from_nb(cell, self)
@@ -509,6 +523,16 @@ class Notebook(Container):
 
                 prev = widget
                 self.call_next(self.cell_container.mount, widget)
+
+            
+            self.notebook_kernel.initialize()
+            if not self.notebook_kernel.initialized:
+                self.notify(
+                    "[bold]ipykernel[/] missing from python environment in current working directory.",
+                    severity="error",
+                    timeout=10,
+                )
+                return
 
     async def add_cell(
         self,

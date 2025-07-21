@@ -15,10 +15,10 @@ from textual.events import Key
 
 from pathlib import Path
 import os.path
-import sys
+from argparse import ArgumentParser
 
-
-from .notebook import Notebook
+from . import __version__
+from .notebook import Notebook, DEFAULT_FILE_NAME
 from .save_as_screen import SaveAsScreen
 
 
@@ -109,8 +109,14 @@ class Erys(App):
             for path in paths
             if Path(path).suffix == ".ipynb" and (Path(path).exists() or Path(path).parent.is_dir())
         ]
+        self.tabs = Tabs(
+            *[Tab(path, id=f"tab{idx}") for idx, path in enumerate(self.paths)]
+        )
         self.cur_tab = len(paths)
-        self.tab_to_nb_id_map: dict[str, int] = {}  # maps from tab id to notebook id
+        self.nb_path_to_tab_id: dict[str, int] = {}  # maps from tab id to notebook id
+        
+        self.dir_tree = DirectoryNav(Path.cwd(), id="file-tree")
+        self.switcher = ContentSwitcher(id="tab-content")
 
     def compose(self) -> ComposeResult:
         """Composed with:
@@ -128,18 +134,13 @@ class Erys(App):
         yield Header(show_clock=True, time_format="%I:%M:%S %p")
 
         with Horizontal():
-            self.dir_tree = DirectoryNav(Path.cwd(), id="file-tree")
             yield self.dir_tree
 
             with Vertical():
-                self.tabs = Tabs(
-                    *[Tab(path, id=f"tab{idx}") for idx, path in enumerate(self.paths)]
-                )
                 yield self.tabs
-                self.switcher = ContentSwitcher(id="tab-content")
                 with self.switcher:
                     for idx, path in enumerate(self.paths):
-                        self.tab_to_nb_id_map[path] = f"tab{idx}"
+                        self.nb_path_to_tab_id[path] = f"tab{idx}"
                         yield Notebook(path, f"tab{idx}", self)
 
         yield Footer()
@@ -149,10 +150,11 @@ class Erys(App):
         then focuses on the tabs.
         """
         if len(self.paths) == 0:
-            self.action_new_notebook()
-
-        self.tabs.focus()
-        self.dir_tree.display = False
+            self.dir_tree.display = True
+            self.dir_tree.focus()
+        else:
+            self.dir_tree.display = False
+            self.tabs.active = f"tab{self.cur_tab - 1}"
 
     def on_tabs_tab_activated(self, event: Tabs.TabActivated) -> None:
         """Tab activated event handler that switches content to show notebook the tab belongs to.
@@ -160,10 +162,10 @@ class Erys(App):
         Args:
             event: tab activated event.
         """
-        if event.tab is None:
+        if event.tab is None or str(event.tab.label) not in self.nb_path_to_tab_id:
             pass
         else:
-            notebook_id = self.tab_to_nb_id_map[str(event.tab.label)]
+            notebook_id = self.nb_path_to_tab_id[str(event.tab.label)]
             self.switcher.current = f"{notebook_id}"
 
     def on_directory_tree_file_selected(
@@ -221,14 +223,15 @@ class Erys(App):
             self.set_focus(self.tabs)
 
     def action_new_notebook(self) -> None:
-        """Create a new notebook with the path set to 'new_empty_terminal_notebook'."""
+        """Create a new notebook with the path set to `DEFAULT_FILE_NAME{self.cur_tab}`."""
         # for a new notebook the notebook id is the same as the tab id
         tab_id = f"tab{self.cur_tab}"
         # add a new tab
-        self.tabs.add_tab(Tab(tab_id, id=tab_id))
-        self.tab_to_nb_id_map[tab_id] = tab_id
+        self.notebook_path = f"{DEFAULT_FILE_NAME}{self.cur_tab}"
+        self.tabs.add_tab(Tab(self.notebook_path, id=tab_id))
+        self.nb_path_to_tab_id[self.notebook_path] = tab_id
 
-        new_notebook = Notebook("new_empty_terminal_notebook", tab_id, self)
+        new_notebook = Notebook(self.notebook_path, tab_id, self)
         self.switcher.mount(new_notebook)
 
         # set the new tab to be the active one
@@ -240,17 +243,8 @@ class Erys(App):
     def action_close(self) -> None:
         """Remove active tab."""
         active_tab = self.tabs.active_tab
+        self.remove_tab(active_tab.label)
         # TODO: ask for save
-        # if a tab is active then remove it and the notebook
-        if active_tab is not None:
-            self.tabs.remove_tab(active_tab.id)
-            notebook_id = self.tab_to_nb_id_map[active_tab.label]
-            self.switcher.remove_children(f"#{notebook_id}")
-            del self.tab_to_nb_id_map[active_tab.label]
-
-        # set the switcher's currently displayed widget to none to avoid errors
-        if len(self.tab_to_nb_id_map) == 0:
-            self.switcher.current = None
 
     def action_clear(self) -> None:
         """Clear the tabs."""
@@ -259,24 +253,50 @@ class Erys(App):
             child.remove()
 
         # clear the map and the switcher's currently displayed widget to avoid errors
-        self.tab_to_nb_id_map = {}
+        self.nb_path_to_tab_id = {}
         self.switcher.current = None
 
     def change_tab_name(self, tab_id: str, new_path: str) -> None:
-        """Update the key in the map from tab id to notebook id. Used when saving a new file to
+        """Update the key in the map from the default `new_empty_te
+        tab id to notebook id. Used when saving a new file to
         update the map and the Tab label.
         
         Args:
             tab_id: the tab id for the notebook with the new path.
             new_path: the new path for the notebook.
         """
-        if tab_id not in self.tab_to_nb_id_map:
+        if tab_id not in self.nb_path_to_tab_id:
             pass
 
         path = os.path.relpath(new_path, Path.cwd())
         target_tab: Tab = self.tabs.query_one(f"#{tab_id}", Tab)
         target_tab.update(path)
 
+        del self.nb_path_to_tab_id[tab_id]
+
+        self.nb_path_to_tab_id[path] = tab_id
+        
+        # reload the directory tree
+        self.dir_tree.path = self.dir_tree.path
+
+    def remove_tab(self, nb_path: str) -> None:
+        """Deletes tab belonging to notebook with path `nb_path`.
+
+        Args:
+            nb_path: path of the notebook whose tab is being removed.
+        """
+        # if a tab is active then remove it and the notebook
+        tab_id = self.nb_path_to_tab_id[nb_path]
+        target_tab: Tab = self.tabs.query_one(f"#{tab_id}", Tab)
+
+        if target_tab is not None:
+            self.tabs.remove_tab(target_tab.id)
+            self.switcher.remove_children(f"#{tab_id}")
+            del self.nb_path_to_tab_id[target_tab.label]
+
+        # set the switcher's currently displayed widget to none to avoid errors
+        if len(self.nb_path_to_tab_id) == 0:
+            self.switcher.current = None
 
     def open_notebook(self, path: Path) -> None:
         """Open a notebook. Either change tabs to the notebook if it is already loaded or 
@@ -287,8 +307,8 @@ class Erys(App):
         """
         path = os.path.relpath(path, Path.cwd())
 
-        if path in self.tab_to_nb_id_map:
-            self.tabs.active = self.tab_to_nb_id_map[path]
+        if path in self.nb_path_to_tab_id:
+            self.tabs.active = self.nb_path_to_tab_id[path]
             return
 
         tab_id = f"tab{self.cur_tab}"
@@ -299,12 +319,21 @@ class Erys(App):
         self.tabs.active = tab_id
 
         self.switcher.mount(new_notebook)
-        self.tab_to_nb_id_map[path] = tab_id
+        self.nb_path_to_tab_id[path] = tab_id
         self.cur_tab += 1
 
 
 def main():
-    app = Erys(sys.argv[1:])
+    parser = ArgumentParser(
+        "erys",
+        description="Terminal Interface for Jupyter Notebooks."
+    )
+
+    parser.add_argument("notebooks", nargs="*", help="One or more notebooks to open", type=Path)
+    parser.add_argument("--version", action="version", version=__version__)
+    args = parser.parse_args()
+
+    app = Erys(args.notebooks)
     app.run()
 
 

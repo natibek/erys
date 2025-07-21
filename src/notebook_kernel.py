@@ -11,9 +11,11 @@ class NotebookKernel:
     def __init__(self) -> None:
         # lock to prevent data races when calling `run_code` for multiple cells asynchronously
         self.execution_lock = Lock()
-        self.initialized = self.initialize()
+        self.initialized = False
 
-    def initialize(self) -> bool:
+    def initialize(self) -> None:
+        """Initializes the notebook kernel's kernel manager and kernel client."""
+
         try:
             self.kernel_manager: KernelManager = KernelManager()  # kernel manager
             self.kernel_manager.start_kernel()
@@ -24,11 +26,11 @@ class NotebookKernel:
                 self.kernel_client.start_channels()
             except:
                 self.kernel_manager.shutdown_kernel()
-                return False
+                self.initialized = False
         except:
-            return False
+            self.initialized = False
 
-        return True
+        self.initialized = True
 
     def get_kernel_info(self) -> dict[str, str]:
         """Get the kernel info for the notebook metadata.
