@@ -89,9 +89,13 @@ class Notebook(Container):
         self.cell_container = VerticalScroll(id="cell-container")
         yield self.cell_container
 
+    def _is_new_notebook(self) -> None:
+        """Checks if notebook is new."""
+        return self.path[:len(DEFAULT_FILE_NAME)] == DEFAULT_FILE_NAME and self.path[len(DEFAULT_FILE_NAME):].isdigit()
+
     def on_mount(self) -> None:
         """Mount event handler that loads a notebook if path is provided."""
-        if self.path[:len(DEFAULT_FILE_NAME)] != DEFAULT_FILE_NAME and not self.path[len(DEFAULT_FILE_NAME):].isdigit():
+        if not self._is_new_notebook():
             self.path = Path(self.path)
             if self.path.exists():
                 self.call_after_refresh(self.load_notebook)
@@ -107,8 +111,6 @@ class Notebook(Container):
                     timeout=10,
                 )
                 return
-
-        self.call_after_refresh(self.focus_notebook)
 
     def on_unmount(self) -> None:
         """Unmount event handler that shuts down kernel if avaialble."""
@@ -478,9 +480,9 @@ class Notebook(Container):
         focus on it; otherwise, focus on the `cell_container`.
         """
         if self.last_focused:
-            self.last_focused.focus()
+            self.call_next(self.last_focused.focus)
         else:
-            self.cell_container.focus()
+            self.call_next(self.cell_container.focus)
 
     def save_notebook(self, path: str) -> None:
         """Saves the notebook to the provided path.
@@ -523,8 +525,8 @@ class Notebook(Container):
 
                 prev = widget
                 self.call_next(self.cell_container.mount, widget)
-
             
+            self.call_next(self.focus_notebook)
             self.notebook_kernel.initialize()
             if not self.notebook_kernel.initialized:
                 self.notify(

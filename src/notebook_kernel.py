@@ -1,6 +1,7 @@
 from typing import Any
 from jupyter_client import KernelManager, BlockingKernelClient
 from threading import Lock
+import os
 
 
 class NotebookKernel:
@@ -18,6 +19,10 @@ class NotebookKernel:
 
         try:
             self.kernel_manager: KernelManager = KernelManager()  # kernel manager
+            import ipykernel
+            ipykernel_path = os.path.join(os.path.dirname(ipykernel.__file__), "ipykernel_launcher.py")
+            self.kernel_manager.kernel_cmd = [ipykernel_path, "-f", "{connection_file}"]
+
             self.kernel_manager.start_kernel()
             try:
                 self.kernel_client: BlockingKernelClient = (
@@ -27,8 +32,10 @@ class NotebookKernel:
             except:
                 self.kernel_manager.shutdown_kernel()
                 self.initialized = False
+                return
         except:
             self.initialized = False
+            return
 
         self.initialized = True
 
