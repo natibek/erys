@@ -108,9 +108,14 @@ class File(Container):
     def load_file(self) -> None:
         """Load contents of a file from a path to the editor."""
         with open(self.path, "r") as f:
-            self.source = f.read()
-            self.input_text.text = self.source
-
+            try:
+                # if the json decoding fails then the notebook is bad
+                self.source = f.read()
+                self.input_text.text = self.source
+            except UnicodeDecodeError:
+                self.notify(f"Failed to read {self.path}.", severity="error")
+                self.term_app.remove_tab(str(self.path))
+                return
 
     def focus_file(self) -> None:
         """Focus on the editor area."""
