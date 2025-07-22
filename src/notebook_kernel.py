@@ -88,95 +88,94 @@ class NotebookKernel:
 
         Returns: the outputs of executing the code with the kernel.
         """
-        with self.execution_lock:  # acquire lock for executing code
-            self.kernel_client.execute(code)
+        self.kernel_client.execute(code)
 
-            # Read the output from the iopub channel
-            outputs = []
-            execution_count = None
-            while True:
-                try:
-                    msg = self.kernel_client.get_iopub_msg()
-                    match msg["header"]["msg_type"]:
-                        case "execute_input":
-                            # if no execute output is present for execution, execution count can
-                            # be found from the execute_input output
-                            execution_count = msg["content"]["execution_count"]
-                        case "display_data":
-                            # {
-                            #    "output_type": "display_data",
-                            #    "data": {
-                            #        "text/plain": "[multiline text data]",
-                            #        "image/png": "[base64-encoded-multiline-png-data]",
-                            #        "application/json": {
-                            #            # JSON data is included as-is
-                            #            "key1": "data",
-                            #            "key2": ["some", "values"],
-                            #            "key3": {"more": "data"},
-                            #        },
-                            #        "application/vnd.exampleorg.type+json": {
-                            #            # JSON data, included as-is, when the mime-type key ends in +json
-                            #            "key1": "data",
-                            #            "key2": ["some", "values"],
-                            #            "key3": {"more": "data"},
-                            #        },
-                            #    },
-                            #    "metadata": {
-                            #        "image/png": {
-                            #            "width": 640,
-                            #            "height": 480,
-                            #        },
-                            #    },
-                            # }
-                            output = msg["content"]
-                            output["output_type"] = "display_data"
-                            outputs.append(output)
-                        case "stream":
-                            # {
-                            #   "output_type" : "stream",
-                            #   "name" : "stdout", # or stderr
-                            #   "text" : ["multiline stream text"],
-                            # }
-                            output = msg["content"]
-                            output["output_type"] = "stream"
-                            outputs.append(output)
-                        case "error":
-                            # {
-                            #   'ename' : str,   # Exception name, as a string
-                            #   'evalue' : str,  # Exception value, as a string
-                            #   'traceback' : list,
-                            # }
-                            output = msg["content"]
-                            output["output_type"] = "error"
-                            outputs.append(output)
-                        case "execute_result":
-                            # {
-                            #   "output_type" : "execute_result",
-                            #   "execution_count": 42,
-                            #   "data" : {
-                            #     "text/plain" : ["multiline text data"],
-                            #     "image/png": ["base64-encoded-png-data"],
-                            #     "application/json": {
-                            #       # JSON data is included as-is
-                            #       "json": "data",
-                            #     },
-                            #   },
-                            #   "metadata" : {
-                            #     "image/png": {
-                            #       "width": 640,
-                            #       "height": 480,
-                            #     },
-                            #   },
-                            # }
-                            output = msg["content"]
-                            output["output_type"] = "execute_result"
-                            outputs.append(output)
-                        case "status":
-                            if msg["content"]["execution_state"] == "idle":
-                                break
-                except Exception as e:
-                    pass
-            return outputs, execution_count
+        # Read the output from the iopub channel
+        outputs = []
+        execution_count = None
+        while True:
+            try:
+                msg = self.kernel_client.get_iopub_msg()
+                match msg["header"]["msg_type"]:
+                    case "execute_input":
+                        # if no execute output is present for execution, execution count can
+                        # be found from the execute_input output
+                        execution_count = msg["content"]["execution_count"]
+                    case "display_data":
+                        # {
+                        #    "output_type": "display_data",
+                        #    "data": {
+                        #        "text/plain": "[multiline text data]",
+                        #        "image/png": "[base64-encoded-multiline-png-data]",
+                        #        "application/json": {
+                        #            # JSON data is included as-is
+                        #            "key1": "data",
+                        #            "key2": ["some", "values"],
+                        #            "key3": {"more": "data"},
+                        #        },
+                        #        "application/vnd.exampleorg.type+json": {
+                        #            # JSON data, included as-is, when the mime-type key ends in +json
+                        #            "key1": "data",
+                        #            "key2": ["some", "values"],
+                        #            "key3": {"more": "data"},
+                        #        },
+                        #    },
+                        #    "metadata": {
+                        #        "image/png": {
+                        #            "width": 640,
+                        #            "height": 480,
+                        #        },
+                        #    },
+                        # }
+                        output = msg["content"]
+                        output["output_type"] = "display_data"
+                        outputs.append(output)
+                    case "stream":
+                        # {
+                        #   "output_type" : "stream",
+                        #   "name" : "stdout", # or stderr
+                        #   "text" : ["multiline stream text"],
+                        # }
+                        output = msg["content"]
+                        output["output_type"] = "stream"
+                        outputs.append(output)
+                    case "error":
+                        # {
+                        #   'ename' : str,   # Exception name, as a string
+                        #   'evalue' : str,  # Exception value, as a string
+                        #   'traceback' : list,
+                        # }
+                        output = msg["content"]
+                        output["output_type"] = "error"
+                        outputs.append(output)
+                    case "execute_result":
+                        # {
+                        #   "output_type" : "execute_result",
+                        #   "execution_count": 42,
+                        #   "data" : {
+                        #     "text/plain" : ["multiline text data"],
+                        #     "image/png": ["base64-encoded-png-data"],
+                        #     "application/json": {
+                        #       # JSON data is included as-is
+                        #       "json": "data",
+                        #     },
+                        #   },
+                        #   "metadata" : {
+                        #     "image/png": {
+                        #       "width": 640,
+                        #       "height": 480,
+                        #     },
+                        #   },
+                        # }
+                        output = msg["content"]
+                        output["output_type"] = "execute_result"
+                        outputs.append(output)
+                    case "status":
+                        if msg["content"]["execution_state"] == "idle":
+                            break
+            except Exception as e:
+                pass
+        return outputs, execution_count
 
     def interrupt_kernel(self) -> None:
         """Interrupt the kernel."""

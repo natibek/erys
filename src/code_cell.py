@@ -15,8 +15,8 @@ from PIL import Image
 from asyncio import to_thread
 from rich.text import Text
 from typing import Any
+from enum import Enum
 
-from .notebook_kernel import NotebookKernel
 from .cell import (
     CopyTextArea,
     SplitTextArea,
@@ -55,35 +55,52 @@ class OutputCollapseLabel(Label):
             code_cell.output_switcher.current = "outputs"
             self.styles.color = EXPANDED_COLOR
 
+class ExecStatus(Enum):
+    """Status for code cell execution."""
+    IDLE=0
+    QUEUED=1
+    RUNNING=2
+    ERROR=3
+
 
 class RunLabel(Label):
     """Custom label used as button for running/interrupting code cell."""
 
-    running: bool = var(False, init=False)
-    glyphs = {False: "▶", True: "□"}  # glyphs representing running state
-    toolips = {False: "Run", True: "Interrupt"}
+    status: ExecStatus = var(ExecStatus.IDLE, init=False)
+    glyphs = {
+        ExecStatus.IDLE: "▶", 
+        ExecStatus.ERROR: "[red 50%]▶[/]", 
+        ExecStatus.RUNNING: "□",
+        ExecStatus.QUEUED: "..",
+    }  # glyphs representing running state
+    toolips = {
+        ExecStatus.IDLE: "Idle: Run", 
+        ExecStatus.ERROR: "Error: Run", 
+        ExecStatus.RUNNING: "Running: Interrupt",
+        ExecStatus.QUEUED: "Queued: Interrupt",
+    }
 
     def __init__(self, id: str = "") -> None:
-        super().__init__(self.glyphs[False], id=id)
-        self.tooltip = self.toolips[False]
+        super().__init__(self.glyphs[ExecStatus.IDLE], id=id)
+        self.tooltip = self.toolips[ExecStatus.IDLE]
 
     def on_click(self) -> None:
         """Button to run or interrupt code cell."""
         code_cell: CodeCell = self.parent.parent.parent.parent
 
-        if not self.running:
-            self.run_worker(code_cell.run_cell)
-        else:
+        if self.status in [ExecStatus.IDLE, ExecStatus.ERROR]:
+            code_cell.run_cell()
+        elif self.status in [ExecStatus.RUNNING, ExecStatus.QUEUED]:
             code_cell.interrupt_cell()
 
-    def watch_running(self, is_running: bool) -> None:
+    def watch_status(self, status: ExecStatus) -> None:
         """Watcher method to update the glyph and the tooltip depending on running state.
 
         Args:
-            is_running: whether the code cell is running.
+            status: the current execution status for the code cell
         """
-        self.update(self.glyphs[is_running])
-        self.tooltip = self.toolips[is_running]
+        self.update(self.glyphs[status])
+        self.tooltip = self.toolips[status]
 
 
 class CodeArea(SplitTextArea):
@@ -99,8 +116,8 @@ class CodeArea(SplitTextArea):
         """
         if event.key == "ctrl+r":
             code_cell: CodeCell = self.parent.parent.parent
-            if not code_cell.run_label.running:
-                self.run_worker(code_cell.run_cell)
+            if code_cell.status in [ExecStatus.IDLE, ExecStatus.ERROR]:
+                code_cell.run_cell()
         elif event.character in self.closing_map:
             self.insert(f"{event.character}{self.closing_map[event.character]}")
             self.move_cursor_relative(columns=-1)
@@ -397,9 +414,9 @@ class CodeCell(Cell):
             lambda: self.exec_count_display.update(f"[{new or ' '}]")
         )
 
-    async def action_run_cell(self) -> None:
+    def action_run_cell(self) -> None:
         """Calls the `run_cell` function."""
-        self.run_worker(self.run_cell)
+        self.run_cell()
 
     def action_collapse(self) -> None:
         """Collapse the code cell. If the outputs or the code cell is not collapsed,
@@ -530,6 +547,7 @@ class CodeCell(Cell):
                 case "error":
                     # display the errors with the `OutputError` widget
                     self.outputs_group.mount(OutputAnsi(output["traceback"]))
+                    self.status = ExecStatus.ERROR
                 case "execute_result" | "display_data":
                     # the display_data and output_result have different formats
                     for type, data in output["data"].items():
@@ -550,40 +568,34 @@ class CodeCell(Cell):
 
         self.refresh()
 
-    async def run_cell(self) -> None:
+    @property
+    def status(self) -> ExecStatus:
+        return self.run_label.status
+
+    @status.setter
+    def status(self, status: ExecStatus) -> None:
+        self.run_label.status = status
+
+    def run_cell(self) -> None:
         """Run code in code cell with the kernel in a thread. Update the outputs and the
         execution count for the cell.
         """
         # check if there is a kernel for the notebook
-        if not self.notebook.notebook_kernel.initialized:
-            self.notify(
-                "[bold]ipykernel[/] missing from python environment in current working directory.",
-                severity="error",
-                timeout=10,
-            )
+        if not self.notebook._is_kernel_connected():
             return
-        kernel: NotebookKernel = self.notebook.notebook_kernel
+        
+        self.status = ExecStatus.QUEUED
+        self.notebook._exec_queue.enqueue(self)
 
-        self.source = self.input_text.text
-        if not self.source:  # only call the kernel execute if there is code
-            return
-
-        self.run_label.running = True  # update the running status for the code cell
-        outputs, execution_count = await to_thread(kernel.run_code, self.source)
-        self.run_label.running = False
+    def handle_exec_completion(self, outputs: list[dict[str, Any]], execution_count: int) -> None:
         self.exec_count = execution_count
         self.outputs = outputs
         self.call_next(self.update_outputs, outputs)  # update the output cells
 
     def interrupt_cell(self) -> None:
         """Interrupt kernel when running cell."""
-        if not self.notebook.notebook_kernel.initialized:
-            self.notify(
-                "[bold]ipykernel[/] missing from python environment in current working directory.",
-                severity="error",
-                timeout=10,
-            )
+
+        if not self.notebook._is_kernel_connected():
             return
 
-        kernel: NotebookKernel = self.notebook.notebook_kernel
-        kernel.interrupt_kernel()
+        self.notebook.interrupt_exec()

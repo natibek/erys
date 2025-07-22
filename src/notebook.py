@@ -4,14 +4,17 @@ from textual.containers import VerticalScroll, Container, HorizontalScroll
 from textual.events import Key, DescendantFocus, Click
 from textual.binding import Binding
 
+from threading import Lock
 from typing import Any
 import json
 from pathlib import Path
+import time
 
 from .markdown_cell import MarkdownCell
-from .code_cell import CodeCell, CodeArea, OutputText, OutputJson, OutputAnsi
+from .code_cell import CodeCell, CodeArea, ExecStatus, OutputText, OutputJson, OutputAnsi
 from .cell import CopyTextArea, Cell, StaticBtn
 from .notebook_kernel import NotebookKernel
+from .queue import Queue
 
 
 MAX_UNDO_LEN = 20
@@ -50,6 +53,8 @@ class Notebook(Container):
     last_copied: Cell | None = None  # keep track of the copied/cut cell
     _delete_stack: list[tuple[dict[str, Any], str, str]] = []
     _merge_list: list[Cell] = []  # list of the cells to be merged.
+    _exec_queue: Queue = Queue()
+    _queue_lock: Lock = Lock()
 
     BINDINGS = [
         Binding("a", "add_cell_after", "Add Cell After", False),
@@ -78,6 +83,7 @@ class Notebook(Container):
         self._nbformat: int = 4
         self._nbformat_minor: int = 5
 
+
     def compose(self) -> ComposeResult:
         """Composed with:
         - Container
@@ -89,12 +95,22 @@ class Notebook(Container):
         self.cell_container = VerticalScroll(id="cell-container")
         yield self.cell_container
 
+    def _is_kernel_connected(self) -> bool:
+        if not self.notebook_kernel.initialized:
+            self.notify(
+                "[bold]ipykernel[/] missing from python environment in current working directory.",
+                severity="error",
+                timeout=10,
+            )
+        return self.notebook_kernel.initialized
+
     def _is_new_notebook(self) -> None:
         """Checks if notebook is new."""
         return self.path[:len(DEFAULT_FILE_NAME)] == DEFAULT_FILE_NAME and self.path[len(DEFAULT_FILE_NAME):].isdigit()
 
-    def on_mount(self) -> None:
+    async def on_mount(self) -> None:
         """Mount event handler that loads a notebook if path is provided."""
+
         if not self._is_new_notebook():
             self.path = Path(self.path)
             if self.path.exists():
@@ -104,18 +120,19 @@ class Notebook(Container):
                     pass
         else:
             self.notebook_kernel.initialize()
-            if not self.notebook_kernel.initialized:
-                self.notify(
-                    "[bold]ipykernel[/] missing from python environment in current working directory.",
-                    severity="error",
-                    timeout=10,
-                )
-                return
+            self._is_kernel_connected()
+
+        self.run_worker(self.notebook_executor, thread=True)
 
     def on_unmount(self) -> None:
         """Unmount event handler that shuts down kernel if avaialble."""
         if self.notebook_kernel.initialized:
+            self.notebook_kernel.interrupt_kernel()
+            time.sleep(0.5)
             self.notebook_kernel.shutdown_kernel()
+
+        self.clear_exec_queue()
+        self._exec_queue.enqueue(None)
 
     def on_descendant_focus(self, event: DescendantFocus) -> None:
         """Descendant focus event handler that assigns the last focused cell depending on what
@@ -179,14 +196,11 @@ class Notebook(Container):
                 widget = await self.add_cell(MarkdownCell, self.last_focused, "after")
                 self.call_after_refresh(widget.open)
             case "restart-shell":
-                self.notebook_kernel.restart_kernel()
+                if self._is_kernel_connected():
+                    self.notebook_kernel.restart_kernel()
             case "run-all" | "run-after" | "run-before" if not self.notebook_kernel:
                 # if any of the run buttons are pressed check if there is a notebook kernel
-                if not self.notebook_kernel:
-                    self.notify(
-                        "No kernel available for notebook.", severity="error", timeout=8
-                    )
-                    self.last_focused.focus()
+                if not self._is_kernel_connected():
                     return
             case "run-all":
                 await self.run_all_cells()
@@ -424,12 +438,23 @@ class Notebook(Container):
         if self.last_focused:
             self.last_focused.focus()
 
+    def clear_exec_queue(self) -> None:
+        """Clears execution queue and resets code cells to idle."""
+        for cell in self._exec_queue.clear():
+            cell.status = ExecStatus.IDLE
+
+    def interrupt_exec(self) -> None:
+        """Interrupt execution and clear the execution queue."""
+        self.notebook_kernel.interrupt_kernel()
+        self.clear_exec_queue()
+
     async def run_all_cells(self) -> None:
         """Run all code cells."""
         # iterate over all the code cells and run them
         for cell in self.cell_container.children:
             if isinstance(cell, CodeCell):
-                await cell.run_cell()
+                cell.status = ExecStatus.QUEUED
+                self._exec_queue.enqueue(cell)
         self.last_focused.focus()
 
     async def run_cells_after(self) -> None:
@@ -441,7 +466,8 @@ class Notebook(Container):
         cell = self.last_focused
         while cell:
             if isinstance(cell, CodeCell):
-                await cell.run_cell()
+                cell.status = ExecStatus.QUEUED
+                self._exec_queue.enqueue(cell)
             cell = cell.next
         self.last_focused.focus()
 
@@ -454,8 +480,28 @@ class Notebook(Container):
             if cell == self.last_focused:
                 break
             if isinstance(cell, CodeCell):
-                await cell.run_cell()
+                cell.status = ExecStatus.QUEUED
+                self._exec_queue.enqueue(cell)
         self.last_focused.focus()
+
+    async def notebook_executor(self) -> None:
+        """Threaded consumer function to run code cells using the `_exec_queue`."""
+        while True:
+            code_cell: CodeCell = self._exec_queue.dequeue()
+
+            if  code_cell is None: # sentinel for exiting
+                break
+            src = code_cell.input_text.text
+
+            if src == "":  # only call the kernel execute if there is code
+                continue
+
+            code_cell.status = ExecStatus.RUNNING
+            outputs, execution_count = self.notebook_kernel.run_code(src)
+            code_cell.status = ExecStatus.IDLE
+            code_cell.handle_exec_completion(outputs, execution_count)
+
+        return
 
     async def toggle_cell_type(self) -> None:
         """Swtich the cell type keeping the input text source."""
