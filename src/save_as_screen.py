@@ -35,6 +35,22 @@ class FilteredDirectoryTree(DirectoryTree):
 
 
 class SaveAsScreen(Screen[str | None]):
+    def __init__(self, is_notebook: bool) -> None:
+        super().__init__()
+        self.is_notebook = is_notebook
+        if is_notebook:
+            # input for file name
+            self.input = Input(
+                placeholder="File Name", id="save-as-input", validators=[NotebookName()]
+            )
+            # to help select the directory where the file can be saved at
+            self.dir_tree = FilteredDirectoryTree(Path.cwd(), id="save-as-dir-tree")
+        else:
+            self.input = Input(
+                placeholder="File Name", id="save-as-input",
+            )
+            self.dir_tree = DirectoryTree(Path.cwd(), id="save-as-dir-tree")
+
     def compose(self) -> ComposeResult:
         """Composed with:
         - Screen
@@ -44,18 +60,17 @@ class SaveAsScreen(Screen[str | None]):
                 - FilteredDirectoryTree (id=save-as-dir-tree)
         """
         with Vertical(id="save-as"):
-            # input for file name
-            self.input = Input(
-                placeholder="File Name", id="save-as-input", validators=[NotebookName()]
-            )
             # displays the directory where the file will be saved at
             self.cur_dir = Static(f"Saving at: {Path.cwd()}", id="save-as-dir")
-            # to help select the directory where the file can be saved at
-            self.dir_tree = FilteredDirectoryTree(Path.cwd(), id="save-as-dir-tree")
 
             yield self.cur_dir
             yield self.input
             yield self.dir_tree
+
+    def on_mount(self) -> None:
+        """Properly set directory tree path after mount."""
+        self.cur_dir.update(f"Saving at: {Path.cwd()}")
+        self.dir_tree.path = Path.cwd()
 
     def on_screen_resume(self, event: ScreenResume) -> None:
         """Screen resume event handler that resets the path for directory tree and static to pwd.
@@ -128,8 +143,12 @@ class SaveAsScreen(Screen[str | None]):
         Args:
             event: input submitted event.
         """
-        if event.validation_result.is_valid:
+        if self.is_notebook:
+            if event.validation_result.is_valid:
+                file_path = self.dir_tree.path.joinpath(event.value)
+                self.dismiss(file_path)
+            else:
+                self.notify(event.validation_result.failure_descriptions, severity="error")
+        else:
             file_path = self.dir_tree.path.joinpath(event.value)
             self.dismiss(file_path)
-        else:
-            self.notify(event.validation_result.failure_descriptions, severity="error")

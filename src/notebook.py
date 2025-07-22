@@ -115,9 +115,6 @@ class Notebook(Container):
             self.path = Path(self.path)
             if self.path.exists():
                 self.call_after_refresh(self.load_notebook)
-            elif self.path.parent.is_dir():
-                with open(self.path, "w") as f:
-                    pass
         else:
             self.notebook_kernel.initialize()
             self._is_kernel_connected()
@@ -213,11 +210,13 @@ class Notebook(Container):
 
     async def action_add_cell_after(self) -> None:
         """Add code cell after current cell."""
-        await self.add_cell(CodeCell, self.last_focused, "after")
+        cell = await self.add_cell(CodeCell, self.last_focused, "after")
+        cell.focus()
 
     async def action_add_cell_before(self) -> None:
         """Add code cell before current cell."""
-        await self.add_cell(CodeCell, self.last_focused, "before")
+        cell = await self.add_cell(CodeCell, self.last_focused, "before")
+        cell.focus()
 
     def action_save_as(self) -> str:
         """Save notebook as a new file."""
@@ -238,10 +237,9 @@ class Notebook(Container):
                 
                 # change the tab name
                 self.term_app.change_tab_name(self.id, self.path)
-                # self.term_app.open_notebook(path)
 
         # push the save as screen with the above callback function
-        self.app.push_screen("save_as_screen", check_save_as)
+        self.app.push_screen("nb_save_as_screen", check_save_as)
 
     def action_save(self) -> None:
         """Save notebook."""
@@ -521,7 +519,7 @@ class Notebook(Container):
         self.connect_widget(new_cell)
         self.delete_cell(remember=False)
 
-    def focus_notebook(self) -> None:
+    def focus_file(self) -> None:
         """Defines what focusing on a notebook does. If there is a cell that was last focused,
         focus on it; otherwise, focus on the `cell_container`.
         """
@@ -572,7 +570,7 @@ class Notebook(Container):
                 prev = widget
                 self.call_next(self.cell_container.mount, widget)
             
-            self.call_next(self.focus_notebook)
+            self.call_next(self.focus_file)
             self.notebook_kernel.initialize()
             if not self.notebook_kernel.initialized:
                 self.notify(

@@ -20,6 +20,7 @@ from argparse import ArgumentParser
 from . import __version__
 from .notebook import Notebook, DEFAULT_FILE_NAME
 from .save_as_screen import SaveAsScreen
+from .file import File
 
 
 class QuitScreen(Screen):
@@ -91,10 +92,14 @@ class Erys(App):
     """A Textual app for editing and running Python notebooks."""
 
     CSS_PATH = "./styles.tcss"
-    SCREENS = {"quit_screen": QuitScreen, "save_as_screen": SaveAsScreen}
+    # SCREENS = {
+    #     "quit_screen": QuitScreen,
+    #     "nb_save_as_screen": SaveAsScreen,
+    #     "file_save_as_screen": SaveAsScreen,
+    # }
     BINDINGS = [
         ("ctrl+n", "new_notebook", "New Notebook"),
-        ("ctrl+k", "close", "Close Notebook"),
+        ("ctrl+k", "close", "Close Tab"),
         ("ctrl+l", "clear", "Clear Tabs"),
         ("d", "toggle_directory_tree", "Toggle Directory Tree"),
         ("ctrl+q", "push_screen('quit_screen')", "Quit"),
@@ -107,13 +112,13 @@ class Erys(App):
         self.paths = [
             os.path.relpath(path, Path.cwd())
             for path in paths
-            if Path(path).suffix == ".ipynb" and (Path(path).exists() or Path(path).parent.is_dir())
+            if (Path(path).exists() or Path(path).parent.is_dir())
         ]
         self.tabs = Tabs(
             *[Tab(path, id=f"tab{idx}") for idx, path in enumerate(self.paths)]
         )
         self.cur_tab = len(paths)
-        self.nb_path_to_tab_id: dict[str, int] = {}  # maps from tab id to notebook id
+        self.path_to_tab_id: dict[str, int] = {}  # maps from tab id to notebook id
         
         self.dir_tree = DirectoryNav(Path.cwd(), id="file-tree")
         self.switcher = ContentSwitcher(id="tab-content")
@@ -140,8 +145,11 @@ class Erys(App):
                 yield self.tabs
                 with self.switcher:
                     for idx, path in enumerate(self.paths):
-                        self.nb_path_to_tab_id[path] = f"tab{idx}"
-                        yield Notebook(path, f"tab{idx}", self)
+                        self.path_to_tab_id[path] = f"tab{idx}"
+                        if Path(path).suffix == ".ipynb":
+                            yield Notebook(path, f"tab{idx}", self)
+                        else:
+                            yield File(path, f"tab{idx}", self)
 
         yield Footer()
 
@@ -149,6 +157,10 @@ class Erys(App):
         """Mount event handler that creates a new notebook if none are opened when app starts,
         then focuses on the tabs.
         """
+        self.install_screen(QuitScreen, "quit_screen")
+        self.install_screen(lambda: SaveAsScreen(is_notebook=True), "nb_save_as_screen")
+        self.install_screen(lambda: SaveAsScreen(is_notebook=False), "file_save_as_screen")
+
         if len(self.paths) == 0:
             self.dir_tree.display = True
             self.dir_tree.focus()
@@ -162,32 +174,21 @@ class Erys(App):
         Args:
             event: tab activated event.
         """
-        if event.tab is None or str(event.tab.label) not in self.nb_path_to_tab_id:
+        if event.tab is None or str(event.tab.label) not in self.path_to_tab_id:
             pass
         else:
-            notebook_id = self.nb_path_to_tab_id[str(event.tab.label)]
-            self.switcher.current = f"{notebook_id}"
+            file_id = self.path_to_tab_id[str(event.tab.label)]
+            self.switcher.current = f"{file_id}"
 
     def on_directory_tree_file_selected(
         self, event: DirectoryTree.FileSelected
     ) -> None:
-        """File selected event handler that opens notebook if selected file path is has valid
-        extension.
+        """File selected event handler that opens notebook or file.
 
         Args:
             event: file selected event.
         """
-        if not os.path.exists(event.path):
-            self.notify(f"{event.path} does not exist.", severity="error", timeout=8)
-            return
-
-        if event.path.suffix != ".ipynb":
-            self.notify(
-                f"{event.path} is not a jupyter notebook.", severity="error", timeout=8
-            )
-            return
-
-        self.open_notebook(event.path)
+        self.open_file(event.path)
 
     def on_key(self, event: Key) -> None:
         """Key event handler that
@@ -206,19 +207,17 @@ class Erys(App):
 
                 # if currently focused on the tabs, change focus to the latest notebook
                 if isinstance(self.app.focused, Tabs):
-                    notebook = self.switcher.query_one(
-                        f"#{self.switcher.current}", Notebook
-                    )
-                    self.call_next(notebook.focus_notebook)
+                    file = self.switcher.query_one(f"#{self.switcher.current}", Notebook | File)
+                    file.focus_file()
 
     def action_toggle_directory_tree(self) -> None:
         """Toggle whether the directory tree is displayed."""
         self.dir_tree.display = not self.dir_tree.display
         if self.dir_tree.display:
             self.set_focus(self.dir_tree)
-        elif cur_notebook := self.switcher.current:
-            notebook = self.switcher.query_one(f"#{cur_notebook}", Notebook)
-            self.call_next(notebook.focus_notebook)
+        elif cur_file := self.switcher.current:
+            file = self.switcher.query_one(f"#{cur_file}", Notebook | File)
+            file.focus_file()
         else:
             self.set_focus(self.tabs)
 
@@ -229,7 +228,7 @@ class Erys(App):
         # add a new tab
         self.notebook_path = f"{DEFAULT_FILE_NAME}{self.cur_tab}"
         self.tabs.add_tab(Tab(self.notebook_path, id=tab_id))
-        self.nb_path_to_tab_id[self.notebook_path] = tab_id
+        self.path_to_tab_id[self.notebook_path] = tab_id
 
         new_notebook = Notebook(self.notebook_path, tab_id, self)
         self.switcher.mount(new_notebook)
@@ -244,7 +243,6 @@ class Erys(App):
         """Remove active tab."""
         active_tab = self.tabs.active_tab
         self.remove_tab(active_tab.label)
-        # TODO: ask for save
 
     def action_clear(self) -> None:
         """Clear the tabs."""
@@ -253,28 +251,26 @@ class Erys(App):
             child.remove()
 
         # clear the map and the switcher's currently displayed widget to avoid errors
-        self.nb_path_to_tab_id = {}
+        self.path_to_tab_id = {}
         self.switcher.current = None
 
     def change_tab_name(self, tab_id: str, new_path: str) -> None:
-        """Update the key in the map from the default `new_empty_te
-        tab id to notebook id. Used when saving a new file to
-        update the map and the Tab label.
+        """Update the key in the map from path to tab id when a saved is saved as new.
         
         Args:
             tab_id: the tab id for the notebook with the new path.
-            new_path: the new path for the notebook.
+            new_path: the new path for the file.
         """
-        if tab_id not in self.nb_path_to_tab_id:
+        if tab_id not in self.path_to_tab_id:
             pass
 
         path = os.path.relpath(new_path, Path.cwd())
         target_tab: Tab = self.tabs.query_one(f"#{tab_id}", Tab)
+
+        del self.path_to_tab_id[target_tab.label]
+
         target_tab.update(path)
-
-        del self.nb_path_to_tab_id[tab_id]
-
-        self.nb_path_to_tab_id[path] = tab_id
+        self.path_to_tab_id[path] = tab_id
         
         # reload the directory tree
         self.dir_tree.path = self.dir_tree.path
@@ -286,40 +282,44 @@ class Erys(App):
             nb_path: path of the notebook whose tab is being removed.
         """
         # if a tab is active then remove it and the notebook
-        tab_id = self.nb_path_to_tab_id[nb_path]
+        tab_id = self.path_to_tab_id[nb_path]
         target_tab: Tab = self.tabs.query_one(f"#{tab_id}", Tab)
 
         if target_tab is not None:
             self.tabs.remove_tab(target_tab.id)
             self.switcher.remove_children(f"#{tab_id}")
-            del self.nb_path_to_tab_id[target_tab.label]
+            del self.path_to_tab_id[target_tab.label]
 
         # set the switcher's currently displayed widget to none to avoid errors
-        if len(self.nb_path_to_tab_id) == 0:
+        if len(self.path_to_tab_id) == 0:
             self.switcher.current = None
 
-    def open_notebook(self, path: Path) -> None:
-        """Open a notebook. Either change tabs to the notebook if it is already loaded or 
-        create a new notebook in a new new and swtich to that tab.
+    def open_file(self, path: Path) -> None:
+        """Open a file. Either change tabs to the file if it is already loaded or 
+        create a new file (notebook or regular) in a new tab and swtich to that tab.
         
         Args:
-            path: path to the notebook.
+            path: path to the file.
         """
         path = os.path.relpath(path, Path.cwd())
 
-        if path in self.nb_path_to_tab_id:
-            self.tabs.active = self.nb_path_to_tab_id[path]
+        if path in self.path_to_tab_id:
+            self.tabs.active = self.path_to_tab_id[path]
             return
 
         tab_id = f"tab{self.cur_tab}"
 
-        new_notebook = Notebook(path, tab_id, self)
+        if Path(path).suffix == ".ipynb":
+            new_file = Notebook(path, tab_id, self)
+        else:
+            new_file = File(path, tab_id, self)
+
         self.tabs.add_tab(Tab(path, id=tab_id))
 
         self.tabs.active = tab_id
 
-        self.switcher.mount(new_notebook)
-        self.nb_path_to_tab_id[path] = tab_id
+        self.switcher.mount(new_file)
+        self.path_to_tab_id[path] = tab_id
         self.cur_tab += 1
 
 

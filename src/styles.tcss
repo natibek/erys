@@ -21,7 +21,7 @@ ButtonRow StaticBtn {
     border-bottom: gray solid
 }
 
-Markdown, CopyTextArea {
+Markdown, #text {
     min-height: 4;
     height: auto;
     max-height: 30;
@@ -36,6 +36,11 @@ CopyTextArea {
     width: 1fr;
     padding: 0 1;
     margin: 0;
+}
+
+#file-text{
+    height: 100%;
+    margin: 1;
 }
 
 MarkdownCell {

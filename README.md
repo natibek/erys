@@ -3,7 +3,7 @@
 ![Demo](https://raw.githubusercontent.com/natibek/erys/main/data/demo.gif)
 
 **`Erys`** is a tool for opening, creating, editing, running, interacting with, and
-saving Jupyter Notebooks in the terminal. It uses [Textual](https://textual.textualize.io/)
+saving Jupyter Notebooks in the terminal as well as other text files. It uses [Textual](https://textual.textualize.io/)
 for creating the interface and `jupyter_client` for executing code with kernel managers and clients.
 
 ---
@@ -40,18 +40,17 @@ $ pipx install erys
 ## Using `Erys`
 
 Calling `$ erys` in the terminal without any arguments launches the application with an empty notebook.
-Using the directory tree docked on the left, notebooks can be loaded into the app. File types without
-the `.ipynb` extension will not be opened. `backspace` will take you up a directory and `enter` will
+Using the directory tree docked on the left, notebooks and other files can be loaded into the app. 
+`backspace` will take you up a directory and `enter` will
 go into a directory.
 
 ![Directory Tree](https://raw.githubusercontent.com/natibek/erys/main/data/directory-tree.png)
 
-Look at the [Key Bindings](#key-bindings) section to see how to open, save, save as, and close notebooks.
+Look at the [Key Bindings](#key-bindings) section to see how to open, save, save as, and close notebooks and files.
 
-**`Erys`** can also be called with arguments in the command line. These arguments should be paths to jupyter notebook files with the `.ipynb` extension. Any file path that does not have this extension is ignored. The app will
-load each valid file paths into an *`erys`* notebook.
-
-> *In the future, validate that the file is actually a notebook.*
+**`Erys`** can also be called with arguments in the command line. These arguments should be paths to files. The app will
+load each valid file path. If the file does not exist but the parent directory does, a new file will be opened with the
+provided name.
 
 When saving a notebook as new, the following screen is opened:
 
@@ -125,9 +124,29 @@ using `Pillow` and html is rendered in the default browser using `webbrowser`.
 
 ### Syntax Highlighting
 
-**`Erys`** has python and markdown syntax highlighting through textual.
+**`Erys`** has python and markdown syntax highlighting through textual for the notebooks.
 
 ![Python syntax highlighting](https://raw.githubusercontent.com/natibek/erys/main/data/code-syntax-highlighting.png)
+
+It also supports syntax highlighting via [tree-sitter](https://pypi.org/project/tree-sitter/) for when opening and editing files with the following extensions:
+
+|Extension|Language|
+|:-:|:-:|
+|.py| Python|
+|.md| Markdown|
+|.yaml| Yaml|
+|.sh| Bash|
+|.cpp| Cpp|
+|.c| C|
+|.css|Css|
+|.go|Go|
+|.html|Html|
+|.java|Java|
+|.js|Javascript|
+|.json|Json|
+|.rs|Rust|
+|.toml|Toml|
+|.xml|Xml|
 
 --- 
 
@@ -230,8 +249,6 @@ The new cell will have a different id than the original. Cut can be undone.
 1. Opening from cached backup
 1. Ask to save editted files on exit
 1. Mime output types rendering
-1. Edit other text and code files
-1. Validate notebook
 
 --- 
 
