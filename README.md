@@ -136,8 +136,6 @@ It also supports syntax highlighting via [tree-sitter](https://pypi.org/project/
 |.md| Markdown|
 |.yaml| Yaml|
 |.sh| Bash|
-|.cpp| Cpp|
-|.c| C|
 |.css|Css|
 |.go|Go|
 |.html|Html|

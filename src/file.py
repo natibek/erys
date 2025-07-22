@@ -10,8 +10,6 @@ extension_to_language: dict[str, str] = {
     ".md": "markdown",
     ".yaml": "yaml",
     ".sh": "bash",
-    ".cpp": "cpp",
-    ".c": "c",
     ".css":"css",
     ".go":"go",
     ".html":"html",
