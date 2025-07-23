@@ -114,6 +114,7 @@ class CodeArea(SplitTextArea):
             event: Key press event.
         """
         if event.key == "ctrl+r":
+            event.stop()
             code_cell: CodeCell = self.parent.parent.parent
             if code_cell.status in [ExecStatus.IDLE, ExecStatus.ERROR]:
                 code_cell.run_cell()
@@ -542,13 +543,42 @@ class CodeCell(Cell):
             match output["output_type"]:
                 case "stream":
                     # join the strings and display them in the `OutputText` widget
+                    # {
+                    #   "output_type" : "stream",
+                    #   "name" : "stdout", # or stderr
+                    #   "text" : ["multiline stream text"],
+                    # }
                     self.outputs_group.mount(OutputAnsi(output["text"]))
                 case "error":
                     # display the errors with the `OutputError` widget
+                    # {
+                    #   "output_type" : "stream",
+                    #   'ename' : str,   # Exception name, as a string
+                    #   'evalue' : str,  # Exception value, as a string
+                    #   'traceback' : list,
+                    # }
                     self.outputs_group.mount(OutputAnsi(output["traceback"]))
                     self.status = ExecStatus.ERROR
                 case "execute_result" | "display_data":
                     # the display_data and output_result have different formats
+                    # {
+                    #   "output_type" : "execute_result" | "display_data",
+                    #   "execution_count": 42, # if "execute_result"
+                    #   "data" : {
+                    #     "text/plain" : ["multiline text data"],
+                    #     "image/png": ["base64-encoded-png-data"],
+                    #     "application/json": {
+                    #       # JSON data is included as-is
+                    #       "json": "data",
+                    #     },
+                    #   },
+                    #   "metadata" : {
+                    #     "image/png": {
+                    #       "width": 640,
+                    #       "height": 480,
+                    #     },
+                    #   },
+                    # }
                     for type, data in output["data"].items():
                         match type:
                             case "text/plain":
@@ -580,8 +610,8 @@ class CodeCell(Cell):
         execution count for the cell.
         """
         # check if there is a kernel for the notebook
-        # if not self.notebook._is_kernel_connected():
-        #     return
+        if not self.notebook._is_kernel_connected():
+            return
         
         self.status = ExecStatus.QUEUED
         self.notebook._exec_queue.enqueue(self)
@@ -594,7 +624,7 @@ class CodeCell(Cell):
     def interrupt_cell(self) -> None:
         """Interrupt kernel when running cell."""
 
-        # if not self.notebook._is_kernel_connected():
-        #     return
+        if not self.notebook._is_kernel_connected():
+            return
 
         self.notebook.interrupt_exec()

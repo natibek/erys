@@ -4,7 +4,7 @@ Tabs {
  
 DirectoryNav {
     dock: left;
-    min-width: 30;
+    min-width: 35;
     width: 20%;
     border: lightblue solid;
     display: none;

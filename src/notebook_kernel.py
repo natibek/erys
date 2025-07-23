@@ -1,53 +1,85 @@
 from typing import Any
 from jupyter_client import KernelManager, BlockingKernelClient, kernelspec
-from ipykernel.kernelspec import install
 import uuid
-import sys
+import subprocess
+import json
 import os
+import shutil
 from pathlib import Path
 
 ERYS_KERNEL_NAME = "erys_kernel_"
 ERYS_DISPLAY_NAME = "erys_kernel"
 
 class NotebookKernel:
-    """Class for kernel for each notebook. Contains kernel manager and client used to
+    """Class for a kernel for each notebook. Contains kernel manager and client used to
     execute code.
     """
 
     def __init__(self) -> None:
-        # lock to prevent data races when calling `run_code` for multiple cells asynchronously
         self.ksm = kernelspec.KernelSpecManager()
-        self.venv = os.getenv("VIRTUAL_ENV")
-        if self.venv is None:
-            self.initialized = False
+        self.venv_path = os.getenv("VIRTUAL_ENV")
+        self.in_venv = self.venv_path is not None
+        self.kernel_client: BlockingKernelClient = None
+        self.kernel_manager: KernelManager = None
+
+        if self.in_venv:
+            if self._check_for_ipykernel():
+                # only attempt to connect to the kernel if ipykernel is installed
+                self.kernel_path = Path(self.venv_path).joinpath("share/jupyter/")
+                os.environ["JUPYTER_PATH"] = str(self.kernel_path)
+                self.initialized = True
+                self.initialize()
+            else:
+                self.initialized = False
         else:
-            self.initialize()
-            self.initialized = True
+            self.initialized = False
 
-    def initialize(self) -> True:
-        """Initializes the notebook kernel's kernel manager and kernel client."""
+    def initialize(self) -> None:
+        """Initializes the notebook kernel's kernel manager and kernel client.
+        If kernel specs made by `Erys` are found, they are prioritized. 
+        """
+        
+        kernel_spec = self._get_target_kernel_spec() 
 
-            # install(user=True, kernel_name="erys_env_kernel")
-        start_cmd = self.get_kernel_start_cmd() 
-        if start_cmd == "":
+        if not kernel_spec:
             kernel_name = ERYS_KERNEL_NAME + self._generate_id()
-            install(
-                user=True,
+            kernel_spec = self._install_custom_kernel(
                 kernel_name=kernel_name,
                 display_name=ERYS_DISPLAY_NAME,
-                prefix=sys.prefix
             )
-            kernel_specs = self.ksm.get_all_specs()
-            start_cmd = kernel_specs[kernel_name]["spec"]["argv"]
+
+        self.connect_to_kernel_by_spec(kernel_spec)
+    
+    def connect_to_kernel_by_spec(self, kernel_spec: dict[str, Any]) -> None:
+        """Connect with a kernel defined by the given kernel spec and start a `BlockingKernelClient`
+        to use for code executation.
+
+        Args:
+            kernel_spec: spec for the kernel to connect to.
+        """
+        self.shutdown_kernel() # will shutdown existing client channels and kernel manager
 
         self.kernel_manager: KernelManager = KernelManager()  # kernel manager
-        self.kernel_manager.kernel_cmd = start_cmd
 
+        self.kernel_manager.kernel_spec.argv = kernel_spec["argv"]
         self.kernel_manager.start_kernel()
-        self.kernel_client: BlockingKernelClient = (
-            self.kernel_manager.client()
-        )  # kernel client
+
+        self.kernel_client: BlockingKernelClient = self.kernel_manager.client() # kernel client
         self.kernel_client.start_channels()
+
+    def connect_to_kernel_by_name(self, kernel_name: str) -> None:
+        """Connect with a kernel with the given name and start a `BlockingKernelClient`
+        to use for code executation.
+
+        Args:
+            kernel_name: name of the kernel to connect to.
+        """
+        self.shutdown_kernel() # will shutdown existing client channels and kernel manager
+
+        kernel_spec = self._get_target_kernel_spec(kernel_name=kernel_name)
+
+        if kernel_spec:
+            self.connect_to_kernel_by_spec(kernel_spec)
 
     def _generate_id(self) -> str:
         """Generate unique id to use in kernel names created by Erys to avoid collision.
@@ -56,30 +88,101 @@ class NotebookKernel:
         """
         return uuid.uuid4().hex[:5]
 
-    def get_kernel_start_cmd(self) -> list[str]:
-        """Goes through all the kernel specs and finds the for the kernel in the current Python
-        environment to return the start command that will be used by the `KernelManager` to
-        start the correct kernel. If no kernel specs are found or the kernels don't belong to
-        the current Python environment, returns an empty list.
+    def _install_custom_kernel(self, kernel_name: str, display_name: str) -> dict[str, Any]:
+        """Writes the kernel specs for a custom `erys` kernel to the virtual enrivonments
+        jupyter path.
 
-        Returns: the start command to start kernel belonging to the current Python environment.
+        Returns the created kernel spec.
         """
-        kernel_specs = self.ksm.get_all_specs()
+        spec_path = self.kernel_path.joinpath(f"kernels/{kernel_name}")
+        argv = [ 
+            str(Path(self.venv_path).joinpath("bin/python")),
+            '-Xfrozen_modules=off',
+            '-m',
+            'ipykernel_launcher',
+            '-f',
+            '{connection_file}',
+        ]
 
-        if not kernel_specs: return []
+        kernel_spec = {
+            "argv": argv,
+            'env': {},
+            'display_name': display_name,
+            'language': 'python',
+            'interrupt_mode': 'signal',
+            'metadata': {'debugger': True},
+        }
 
-        sys_prefix = sys.prefix
+        spec_path.mkdir(parents=True, exist_ok=True)
+        with open(spec_path.joinpath("kernel.json"), "w") as spec_file:
+            json.dump(kernel_spec, spec_file)
 
-        start_cmd = []
-        for kernel_name, spec in kernel_specs.items():
-            resource_dir = spec["resource_dir"]
-            if Path(resource_dir).is_relative_to(sys_prefix):
-                start_cmd = spec["spec"]["argv"]
-                # if a erys created kernel is found, exit early
-                if kernel_name.startswith(ERYS_KERNEL_NAME): 
-                    return start_cmd
+        return kernel_spec
+
+    def _check_for_ipykernel(self) -> bool:
+        """Check if the virtual enrivonment has `ipykernel` installed.
+
+        Returns: whether `ipykernel` is installed in environment.
+        """
+
+        executable = Path(self.venv_path).joinpath("bin/python")
+        result = subprocess.run(
+            [executable, "-m", "pip", "freeze"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=True
+        )
+        return any("ipykernel" == package.split("==")[0] for package in result.stdout.splitlines())
+
+    def _get_available_kernels(self) -> dict[str, str]:
+        """Find all the available kernels in the current environment.
+
+        Retuns a dictionary with kernel name as key and resource dir as value.
+        """
+        return self.ksm.get_all_specs()
+
+    def _update_kernel_cmd(self, kernel_spec: dict[str, Any]) -> dict[str, Any]:
+        """Expands the relative python executable path in the kernel cmd of a kernel sepc
+        to include path to the environment and disables frozen modules.
+
+        Args:
+            kernel_spec: the spec to expand executable path for and disable frozen modules. 
         
-        return start_cmd
+        Returns kernel spec.
+        """
+        kernel_cmd: list[str] = kernel_spec["argv"]
+        if kernel_cmd[0] in ["python", "python2", "python3"]:
+            kernel_cmd[0] = shutil.which(kernel_cmd[0])
+        
+        if '-Xfrozen_modules=off' not in kernel_cmd:
+            kernel_cmd.insert(1, '-Xfrozen_modules=off')
+
+        return kernel_spec
+
+    def _get_target_kernel_spec(self, kernel_name: str | None = None) -> tuple[list[str], str]:
+        """Goes through all the kernel specs and finds the for the kernel in the current python
+        environment and check if it has the provided kernel name if any is.
+
+        Returns: the kernel spec.
+        """
+        kernel_specs = self._get_available_kernels()
+
+        if not kernel_specs: return {}
+
+        target_kernel_spec = {}
+        for name, spec in kernel_specs.items():
+            resource_dir = spec["resource_dir"]
+            if Path(resource_dir).is_relative_to(self.venv_path):
+                target_kernel_spec = spec["spec"]
+
+                if kernel_name and name == kernel_name: break
+                elif kernel_name is None and name.startswith(ERYS_KERNEL_NAME): break
+        
+        if target_kernel_spec:
+            target_kernel_spec = self._update_kernel_cmd(target_kernel_spec)
+
+        return target_kernel_spec
 
 
     def get_kernel_info(self) -> dict[str, str]:
@@ -95,10 +198,17 @@ class NotebookKernel:
         Returns: the dictionary representing the kernel spec.
         """
         spec = self.kernel_manager.kernel_spec
+        if spec:
+            return {
+                "display_name": spec.display_name,
+                "language": spec.language,
+                "name": spec.name,
+            }
+
         return {
-            "display_name": spec.display_name,
-            "language": spec.lanugage,
-            "name": spec.name,
+            "display_name": "",
+            "language": "",
+            "name": "",
         }
 
     def get_language_info(self) -> dict[str, Any]:
@@ -124,6 +234,8 @@ class NotebookKernel:
 
         Returns: the outputs of executing the code with the kernel.
         """
+        if not self.initialized: return None
+
         self.kernel_client.execute(code)
 
         # Read the output from the iopub channel
@@ -132,93 +244,32 @@ class NotebookKernel:
         while True:
             try:
                 msg = self.kernel_client.get_iopub_msg()
-                match msg["header"]["msg_type"]:
+                msg_type = msg["header"]["msg_type"]
+                match msg_type:
+                    case "status":
+                        if msg["content"]["execution_state"] == "idle":
+                            break
                     case "execute_input":
                         # if no execute output is present for execution, execution count can
                         # be found from the execute_input output
                         execution_count = msg["content"]["execution_count"]
-                    case "display_data":
-                        # {
-                        #    "output_type": "display_data",
-                        #    "data": {
-                        #        "text/plain": "[multiline text data]",
-                        #        "image/png": "[base64-encoded-multiline-png-data]",
-                        #        "application/json": {
-                        #            # JSON data is included as-is
-                        #            "key1": "data",
-                        #            "key2": ["some", "values"],
-                        #            "key3": {"more": "data"},
-                        #        },
-                        #        "application/vnd.exampleorg.type+json": {
-                        #            # JSON data, included as-is, when the mime-type key ends in +json
-                        #            "key1": "data",
-                        #            "key2": ["some", "values"],
-                        #            "key3": {"more": "data"},
-                        #        },
-                        #    },
-                        #    "metadata": {
-                        #        "image/png": {
-                        #            "width": 640,
-                        #            "height": 480,
-                        #        },
-                        #    },
-                        # }
+                    case "display_data" | "stream" | "error" | "execute_result":
                         output = msg["content"]
-                        output["output_type"] = "display_data"
+                        output["output_type"] = msg_type
                         outputs.append(output)
-                    case "stream":
-                        # {
-                        #   "output_type" : "stream",
-                        #   "name" : "stdout", # or stderr
-                        #   "text" : ["multiline stream text"],
-                        # }
-                        output = msg["content"]
-                        output["output_type"] = "stream"
-                        outputs.append(output)
-                    case "error":
-                        # {
-                        #   'ename' : str,   # Exception name, as a string
-                        #   'evalue' : str,  # Exception value, as a string
-                        #   'traceback' : list,
-                        # }
-                        output = msg["content"]
-                        output["output_type"] = "error"
-                        outputs.append(output)
-                    case "execute_result":
-                        # {
-                        #   "output_type" : "execute_result",
-                        #   "execution_count": 42,
-                        #   "data" : {
-                        #     "text/plain" : ["multiline text data"],
-                        #     "image/png": ["base64-encoded-png-data"],
-                        #     "application/json": {
-                        #       # JSON data is included as-is
-                        #       "json": "data",
-                        #     },
-                        #   },
-                        #   "metadata" : {
-                        #     "image/png": {
-                        #       "width": 640,
-                        #       "height": 480,
-                        #     },
-                        #   },
-                        # }
-                        output = msg["content"]
-                        output["output_type"] = "execute_result"
-                        outputs.append(output)
-                    case "status":
-                        if msg["content"]["execution_state"] == "idle":
-                            break
-            except Exception as e:
+            except Exception:
                 pass
         return outputs, execution_count
 
     def interrupt_kernel(self) -> None:
         """Interrupt the kernel."""
+        if not self.initialized: return None
         self.kernel_manager.interrupt_kernel()
 
     def restart_kernel(self) -> None:
         """Restart the kernel."""
+        if not self.initialized: return None
+
         self.kernel_client.stop_channels()
         self.kernel_manager.restart_kernel()
         self.kernel_client: BlockingKernelClient = self.kernel_manager.client()
@@ -226,5 +277,15 @@ class NotebookKernel:
 
     def shutdown_kernel(self) -> None:
         """Shutdown the kernel."""
-        self.kernel_client.stop_channels()
-        self.kernel_manager.shutdown_kernel()
+        if self.kernel_client:
+            self.kernel_client.stop_channels()
+
+        if self.kernel_manager:
+            self.kernel_manager.shutdown_kernel()
+
+
+if __name__ == "__main__":
+    nk = NotebookKernel()
+    print(nk.get_kernel_spec())
+    print(nk.get_language_info())
+    print(nk.get_kernel_info())

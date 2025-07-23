@@ -179,6 +179,8 @@ class Erys(App):
         else:
             file_id = self.path_to_tab_id[str(event.tab.label)]
             self.switcher.current = f"{file_id}"
+            file = self.switcher.query_one(f"#{file_id}", Notebook | File)
+            file.focus_file()
 
     def on_directory_tree_file_selected(
         self, event: DirectoryTree.FileSelected

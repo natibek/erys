@@ -1,6 +1,6 @@
 from collections import deque
 from typing import Any
-from threading import Lock, Condition
+from threading import Condition
 
 class Queue:
     """Custom thread safe queue to use for producer/consumer code cell execution."""

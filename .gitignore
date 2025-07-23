@@ -1,9 +1,7 @@
 .venv/
 .test_venv/
 .dev_venv/
-sample*.py
-test_*.py
-*.ipynb
+dev_null/
 __pycache__/
 .ipynb_checkpoints/
 .ruff_cache/

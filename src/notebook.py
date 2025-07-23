@@ -14,7 +14,7 @@ from .markdown_cell import MarkdownCell
 from .code_cell import CodeCell, CodeArea, ExecStatus, OutputText, OutputJson, OutputAnsi
 from .cell import CopyTextArea, Cell, StaticBtn
 from .notebook_kernel import NotebookKernel
-from .queue import Queue
+from .exec_queue import Queue
 
 
 MAX_UNDO_LEN = 20
@@ -96,12 +96,21 @@ class Notebook(Container):
         yield self.cell_container
 
     def _is_kernel_connected(self) -> bool:
-        if not self.notebook_kernel.initialized:
+        if not self.notebook_kernel.in_venv:
             self.notify(
-                "[bold]ipykernel[/] missing from python environment in current working directory.",
+                "[bold]Erys[/] was not opened in a virtual environment. Open in a virtual "
+                "environment to run notebook.",
                 severity="error",
                 timeout=10,
             )
+        elif not self.notebook_kernel.initialized:
+            self.notify(
+                "[bold]ipykernel[/] not installed in virtual enrivonment. Install "
+                "to run notebook.",
+                severity="error",
+                timeout=10,
+            )
+
         return self.notebook_kernel.initialized
 
     def _is_new_notebook(self) -> None:
@@ -115,10 +124,8 @@ class Notebook(Container):
             self.path = Path(self.path)
             if self.path.exists():
                 self.call_after_refresh(self.load_notebook)
-        else:
-            self.notebook_kernel.initialize()
-            # self._is_kernel_connected()
 
+        self._is_kernel_connected()
         self.run_worker(self.notebook_executor, thread=True)
 
     def on_unmount(self) -> None:
@@ -194,11 +201,11 @@ class Notebook(Container):
                 self.call_after_refresh(widget.open)
             case "restart-shell":
                 self.notebook_kernel.restart_kernel()
-            # case "run-all" | "run-after" | "run-before" if not self.notebook_kernel:
+            case "run-all" | "run-after" | "run-before" if not self.notebook_kernel:
                 # if any of the run buttons are pressed check if there is a notebook kernel
                 # pass
-                # if not self._is_kernel_connected():
-                #     return
+                if not self._is_kernel_connected():
+                    return
             case "run-all":
                 await self.run_all_cells()
             case "run-after":
@@ -484,7 +491,7 @@ class Notebook(Container):
 
     async def notebook_executor(self) -> None:
         """Threaded consumer function to run code cells using the `_exec_queue`."""
-        while True:
+        while self.notebook_kernel.initialized:
             code_cell: CodeCell = self._exec_queue.dequeue()
 
             if  code_cell is None: # sentinel for exiting
@@ -572,13 +579,6 @@ class Notebook(Container):
             
             self.call_next(self.focus_file)
             self.notebook_kernel.initialize()
-            if not self.notebook_kernel.initialized:
-                self.notify(
-                    "[bold]ipykernel[/] missing from python environment in current working directory.",
-                    severity="error",
-                    timeout=10,
-                )
-                return
 
     async def add_cell(
         self,
