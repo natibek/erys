@@ -1,8 +1,13 @@
 from typing import Any
-from jupyter_client import KernelManager, BlockingKernelClient
-from threading import Lock
+from jupyter_client import KernelManager, BlockingKernelClient, kernelspec
+from ipykernel.kernelspec import install
+import uuid
+import sys
 import os
+from pathlib import Path
 
+ERYS_KERNEL_NAME = "erys_kernel_"
+ERYS_DISPLAY_NAME = "erys_kernel"
 
 class NotebookKernel:
     """Class for kernel for each notebook. Contains kernel manager and client used to
@@ -11,33 +16,71 @@ class NotebookKernel:
 
     def __init__(self) -> None:
         # lock to prevent data races when calling `run_code` for multiple cells asynchronously
-        self.execution_lock = Lock()
-        self.initialized = False
+        self.ksm = kernelspec.KernelSpecManager()
+        self.venv = os.getenv("VIRTUAL_ENV")
+        if self.venv is None:
+            self.initialized = False
+        else:
+            self.initialize()
+            self.initialized = True
 
-    def initialize(self) -> None:
+    def initialize(self) -> True:
         """Initializes the notebook kernel's kernel manager and kernel client."""
 
-        try:
-            self.kernel_manager: KernelManager = KernelManager()  # kernel manager
-            import ipykernel
-            ipykernel_path = os.path.join(os.path.dirname(ipykernel.__file__), "ipykernel_launcher.py")
-            self.kernel_manager.kernel_cmd = [ipykernel_path, "-f", "{connection_file}"]
+            # install(user=True, kernel_name="erys_env_kernel")
+        start_cmd = self.get_kernel_start_cmd() 
+        if start_cmd == "":
+            kernel_name = ERYS_KERNEL_NAME + self._generate_id()
+            install(
+                user=True,
+                kernel_name=kernel_name,
+                display_name=ERYS_DISPLAY_NAME,
+                prefix=sys.prefix
+            )
+            kernel_specs = self.ksm.get_all_specs()
+            start_cmd = kernel_specs[kernel_name]["spec"]["argv"]
 
-            self.kernel_manager.start_kernel()
-            try:
-                self.kernel_client: BlockingKernelClient = (
-                    self.kernel_manager.client()
-                )  # kernel client
-                self.kernel_client.start_channels()
-            except:
-                self.kernel_manager.shutdown_kernel()
-                self.initialized = False
-                return
-        except:
-            self.initialized = False
-            return
+        self.kernel_manager: KernelManager = KernelManager()  # kernel manager
+        self.kernel_manager.kernel_cmd = start_cmd
 
-        self.initialized = True
+        self.kernel_manager.start_kernel()
+        self.kernel_client: BlockingKernelClient = (
+            self.kernel_manager.client()
+        )  # kernel client
+        self.kernel_client.start_channels()
+
+    def _generate_id(self) -> str:
+        """Generate unique id to use in kernel names created by Erys to avoid collision.
+
+        Returns a uuid hex. 
+        """
+        return uuid.uuid4().hex[:5]
+
+    def get_kernel_start_cmd(self) -> list[str]:
+        """Goes through all the kernel specs and finds the for the kernel in the current Python
+        environment to return the start command that will be used by the `KernelManager` to
+        start the correct kernel. If no kernel specs are found or the kernels don't belong to
+        the current Python environment, returns an empty list.
+
+        Returns: the start command to start kernel belonging to the current Python environment.
+        """
+        kernel_specs = self.ksm.get_all_specs()
+
+        if not kernel_specs: return []
+
+        sys_prefix = sys.prefix
+
+        start_cmd = []
+        for kernel_name, spec in kernel_specs.items():
+            resource_dir = spec["resource_dir"]
+            if Path(resource_dir).is_relative_to(sys_prefix):
+                start_cmd = spec["spec"]["argv"]
+                # if a erys created kernel is found, exit early
+                if kernel_name.startswith(ERYS_KERNEL_NAME): 
+                    return start_cmd
+        
+        return start_cmd
+
 
     def get_kernel_info(self) -> dict[str, str]:
         """Get the kernel info for the notebook metadata.
@@ -51,19 +94,12 @@ class NotebookKernel:
 
         Returns: the dictionary representing the kernel spec.
         """
-        try:
-            spec = self.kernel_manager.kernel_spec
-            return {
-                "display_name": spec.display_name,
-                "language": spec.lanugage,
-                "name": spec.name,
-            }
-        except:
-            return {
-                "display_name": "",
-                "language": "",
-                "name": "",
-            }
+        spec = self.kernel_manager.kernel_spec
+        return {
+            "display_name": spec.display_name,
+            "language": spec.lanugage,
+            "name": spec.name,
+        }
 
     def get_language_info(self) -> dict[str, Any]:
         """Get the language info for the notebook metadata.

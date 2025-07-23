@@ -12,7 +12,6 @@ import webbrowser
 import base64
 from io import BytesIO
 from PIL import Image
-from asyncio import to_thread
 from rich.text import Text
 from typing import Any
 from enum import Enum
@@ -581,8 +580,8 @@ class CodeCell(Cell):
         execution count for the cell.
         """
         # check if there is a kernel for the notebook
-        if not self.notebook._is_kernel_connected():
-            return
+        # if not self.notebook._is_kernel_connected():
+        #     return
         
         self.status = ExecStatus.QUEUED
         self.notebook._exec_queue.enqueue(self)
@@ -595,7 +594,7 @@ class CodeCell(Cell):
     def interrupt_cell(self) -> None:
         """Interrupt kernel when running cell."""
 
-        if not self.notebook._is_kernel_connected():
-            return
+        # if not self.notebook._is_kernel_connected():
+        #     return
 
         self.notebook.interrupt_exec()

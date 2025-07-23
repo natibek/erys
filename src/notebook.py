@@ -117,7 +117,7 @@ class Notebook(Container):
                 self.call_after_refresh(self.load_notebook)
         else:
             self.notebook_kernel.initialize()
-            self._is_kernel_connected()
+            # self._is_kernel_connected()
 
         self.run_worker(self.notebook_executor, thread=True)
 
@@ -193,12 +193,12 @@ class Notebook(Container):
                 widget = await self.add_cell(MarkdownCell, self.last_focused, "after")
                 self.call_after_refresh(widget.open)
             case "restart-shell":
-                if self._is_kernel_connected():
-                    self.notebook_kernel.restart_kernel()
-            case "run-all" | "run-after" | "run-before" if not self.notebook_kernel:
+                self.notebook_kernel.restart_kernel()
+            # case "run-all" | "run-after" | "run-before" if not self.notebook_kernel:
                 # if any of the run buttons are pressed check if there is a notebook kernel
-                if not self._is_kernel_connected():
-                    return
+                # pass
+                # if not self._is_kernel_connected():
+                #     return
             case "run-all":
                 await self.run_all_cells()
             case "run-after":
