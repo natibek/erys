@@ -150,7 +150,7 @@ class NotebookKernel:
         Returns: whether `ipykernel` is installed in environment.
         """
 
-        executable = Path(self.venv_path).joinpath("bin/python")
+        executable = str(Path(self.venv_path).joinpath("bin/python"))
         result = subprocess.run(
             [executable, "-m", "pip", "freeze"],
             stdout=subprocess.PIPE,
