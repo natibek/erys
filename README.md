@@ -41,8 +41,7 @@ $ pipx install erys
 
 Calling `$ erys` in the terminal without any arguments launches the application with an empty notebook.
 Using the directory tree docked on the left, notebooks and other files can be loaded into the app. 
-`backspace` will take you up a directory and `enter` will
-go into a directory.
+`backspace` will take you up a directory and `enter` will go into a directory.
 
 ![Directory Tree](https://raw.githubusercontent.com/natibek/erys/main/data/directory-tree.png)
 
@@ -68,6 +67,16 @@ Use the up and down arrow keys within a notebook to traverse the cells. Pressing
 on the text area of the cell. `escape` will blur out of the text area and focus on the parent cell.
 Cells have more functionality which are stated in the [Cell Key Bindings](#cell-key-bindings) section.
 
+**`Erys`** must be launched in a python environment with `ipykernel` installed to execute code cells. 
+Here is a simple environment in which **`Erys`** can be used to execute code:
+
+```bash
+$ python -m venv .erys_env
+$ . .erys_env/bin/activate
+$ pip install ipykernel
+$ erys
+```
+
 ### SSH consideration
 
 If using **`Erys`** over ssh, use X11 forwarding to get the rendered images and html. These two
@@ -92,7 +101,7 @@ outputs use the separate windows for rendering.
 ### Code Execution
 
 **`Erys`** can execute `Python` source code in code cells. The `Python` environment in which the source code
-is executed is the one in which the **`Erys`** is created. Also, if `ipykernel` is not found in the
+is executed is the one in which the **`Erys`** is opened. Also, if `ipykernel` is not found in the
 `Python` environment, code cells can not be executed. However, the notebook can still be edited and saved.
 
 Each notebook has its own kernel manager and kernel client. Hence, there is no leaking environment from

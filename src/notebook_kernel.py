@@ -34,38 +34,25 @@ class NotebookKernel:
         else:
             self.initialized = False
 
+    @property
+    def display_name(self) -> str:
+        """Return the kernel name."""
+        try:
+            return self.kernel_manager.kernel_spec.display_name
+        except:
+            return ""
+
     def initialize(self) -> None:
         """Initializes the notebook kernel's kernel manager and kernel client.
         If kernel specs made by `Erys` are found, they are prioritized. 
         """
         
-        kernel_spec = self._get_target_kernel_spec() 
+        kernel_spec, kernel_name = self._get_target_kernel_spec() 
 
         if not kernel_spec:
-            kernel_name = ERYS_KERNEL_NAME + self._generate_id()
-            kernel_spec = self._install_custom_kernel(
-                kernel_name=kernel_name,
-                display_name=ERYS_DISPLAY_NAME,
-            )
+            kernel_spec, kernel_name = self._create_new_kernel_spec()
 
-        self.connect_to_kernel_by_spec(kernel_spec)
-    
-    def connect_to_kernel_by_spec(self, kernel_spec: dict[str, Any]) -> None:
-        """Connect with a kernel defined by the given kernel spec and start a `BlockingKernelClient`
-        to use for code executation.
-
-        Args:
-            kernel_spec: spec for the kernel to connect to.
-        """
-        self.shutdown_kernel() # will shutdown existing client channels and kernel manager
-
-        self.kernel_manager: KernelManager = KernelManager()  # kernel manager
-
-        self.kernel_manager.kernel_spec.argv = kernel_spec["argv"]
-        self.kernel_manager.start_kernel()
-
-        self.kernel_client: BlockingKernelClient = self.kernel_manager.client() # kernel client
-        self.kernel_client.start_channels()
+        self.connect_to_kernel(kernel_spec, kernel_name)
 
     def connect_to_kernel_by_name(self, kernel_name: str) -> None:
         """Connect with a kernel with the given name and start a `BlockingKernelClient`
@@ -79,7 +66,45 @@ class NotebookKernel:
         kernel_spec = self._get_target_kernel_spec(kernel_name=kernel_name)
 
         if kernel_spec:
-            self.connect_to_kernel_by_spec(kernel_spec)
+            self.connect_to_kernel(kernel_spec, kernel_name) 
+
+    def connect_to_kernel(self, kernel_spec: dict[str, Any], kernel_name) -> None:
+        """Connect with a kernel defined by the given kernel spec nad kernel name.
+        Then start a `BlockingKernelClient` to use for code execution.
+
+        Args:
+            kernel_spec: spec for the kernel to connect to.
+            kernel_name: name of the kernel
+        """
+        self.shutdown_kernel() # will shutdown existing client channels and kernel manager
+        self.kernel_manager: KernelManager = KernelManager(kernel_name=kernel_name)  # kernel manager
+
+        # need to manually provide kernel command so that it is not over ridden by 
+        # implementation
+        self.kernel_manager.kernel_cmd = kernel_spec["argv"]
+        self.kernel_manager.kernel_spec.argv = kernel_spec["argv"]
+        self.kernel_manager.kernel_spec.language = kernel_spec["language"]
+        self.kernel_manager.kernel_spec.display_name = kernel_spec["display_name"]
+        self.kernel_manager.kernel_spec.env = kernel_spec["env"]
+        self.kernel_manager.kernel_spec.interrupt_mode = kernel_spec["interrupt_mode"]
+        self.kernel_manager.kernel_spec.metadata = kernel_spec["metadata"]
+
+        self.kernel_manager.start_kernel()
+
+        self.kernel_client: BlockingKernelClient = self.kernel_manager.client() # kernel client
+        self.kernel_client.start_channels()
+
+    def _create_new_kernel_spec(self) -> tuple[dict[str, Any], str]:
+        """Creates new kernel spec in the current python environment.
+
+        Returns the kernel spec and kernel name.
+        """
+        kernel_name = ERYS_KERNEL_NAME + self._generate_id()
+        kernel_spec = self._install_custom_kernel(
+            kernel_name=kernel_name,
+            display_name=ERYS_DISPLAY_NAME,
+        )
+        return kernel_spec, kernel_name
 
     def _generate_id(self) -> str:
         """Generate unique id to use in kernel names created by Erys to avoid collision.
@@ -160,21 +185,23 @@ class NotebookKernel:
 
         return kernel_spec
 
-    def _get_target_kernel_spec(self, kernel_name: str | None = None) -> tuple[list[str], str]:
+    def _get_target_kernel_spec(self, kernel_name: str | None = None) -> tuple[dict[str, Any], str]:
         """Goes through all the kernel specs and finds the for the kernel in the current python
         environment and check if it has the provided kernel name if any is.
 
-        Returns: the kernel spec.
+        Returns: the kernel spec and kernel name.
         """
         kernel_specs = self._get_available_kernels()
 
         if not kernel_specs: return {}
 
         target_kernel_spec = {}
+        target_kernel_name = ""
         for name, spec in kernel_specs.items():
             resource_dir = spec["resource_dir"]
             if Path(resource_dir).is_relative_to(self.venv_path):
                 target_kernel_spec = spec["spec"]
+                target_kernel_name = name
 
                 if kernel_name and name == kernel_name: break
                 elif kernel_name is None and name.startswith(ERYS_KERNEL_NAME): break
@@ -182,7 +209,7 @@ class NotebookKernel:
         if target_kernel_spec:
             target_kernel_spec = self._update_kernel_cmd(target_kernel_spec)
 
-        return target_kernel_spec
+        return target_kernel_spec, target_kernel_name
 
 
     def get_kernel_info(self) -> dict[str, str]:

@@ -6,6 +6,7 @@ from textual.containers import HorizontalGroup, VerticalGroup, VerticalScroll
 from textual.widgets import Static, Label, ContentSwitcher, Pretty
 from textual.events import Key, DescendantBlur, Click
 
+from asyncio import to_thread
 import re
 import tempfile
 import webbrowser
@@ -83,12 +84,12 @@ class RunLabel(Label):
         super().__init__(self.glyphs[ExecStatus.IDLE], id=id)
         self.tooltip = self.toolips[ExecStatus.IDLE]
 
-    def on_click(self) -> None:
+    async def on_click(self) -> None:
         """Button to run or interrupt code cell."""
         code_cell: CodeCell = self.parent.parent.parent.parent
 
         if self.status in [ExecStatus.IDLE, ExecStatus.ERROR]:
-            code_cell.run_cell()
+            await code_cell.run_cell()
         elif self.status in [ExecStatus.RUNNING, ExecStatus.QUEUED]:
             code_cell.interrupt_cell()
 
@@ -117,7 +118,7 @@ class CodeArea(SplitTextArea):
             event.stop()
             code_cell: CodeCell = self.parent.parent.parent
             if code_cell.status in [ExecStatus.IDLE, ExecStatus.ERROR]:
-                code_cell.run_cell()
+                self.run_worker(code_cell.run_cell)
         elif event.character in self.closing_map:
             self.insert(f"{event.character}{self.closing_map[event.character]}")
             self.move_cursor_relative(columns=-1)
@@ -416,7 +417,7 @@ class CodeCell(Cell):
 
     def action_run_cell(self) -> None:
         """Calls the `run_cell` function."""
-        self.run_cell()
+        self.run_worker(self.run_cell)
 
     def action_collapse(self) -> None:
         """Collapse the code cell. If the outputs or the code cell is not collapsed,
@@ -605,17 +606,20 @@ class CodeCell(Cell):
     def status(self, status: ExecStatus) -> None:
         self.run_label.status = status
 
-    def run_cell(self) -> None:
+    async def run_cell(self) -> None:
         """Run code in code cell with the kernel in a thread. Update the outputs and the
         execution count for the cell.
         """
         # check if there is a kernel for the notebook
         if not self.notebook._is_kernel_connected():
             return
-        
-        self.status = ExecStatus.QUEUED
-        self.notebook._exec_queue.enqueue(self)
 
+        self.status = ExecStatus.QUEUED
+        # outputs, count= await to_thread(self.notebook.notebook_kernel.run_code, self.input_text.text)
+        self.notebook._exec_queue.enqueue(self)
+        self.status = ExecStatus.IDLE
+        # self.handle_exec_completion(outputs, count)
+# 
     def handle_exec_completion(self, outputs: list[dict[str, Any]], execution_count: int) -> None:
         self.exec_count = execution_count
         self.outputs = outputs

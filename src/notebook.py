@@ -1,5 +1,6 @@
 from textual.app import ComposeResult
-from textual.widgets import TextArea, Markdown
+from textual.widgets import TextArea, Markdown, Static
+from textual.reactive import var
 from textual.containers import VerticalScroll, Container, HorizontalScroll
 from textual.events import Key, DescendantFocus, Click
 from textual.binding import Binding
@@ -23,6 +24,7 @@ DEFAULT_FILE_NAME = "erys_notebook"
 
 class ButtonRow(HorizontalScroll):
     """Buttton row on top of Notebook"""
+    kernel_name: str = var("", init=False)
 
     def compose(self) -> ComposeResult:
         """Composed with:
@@ -43,18 +45,21 @@ class ButtonRow(HorizontalScroll):
         # yield StaticBtn("▶ ↑ Run Before", id="run-before")
         # yield StaticBtn("▶ ↓ Run After", id="run-after")
         yield StaticBtn("🔁 Restart", id="restart-shell")
-        yield StaticBtn("Toggle Cell Type", id="toggle-cell-type")
+        self.kernel_label = Static(f"Kernel: {self.kernel_name}", id="kernel-name")
+        yield self.kernel_label
+
+
+    def watch_kernel_name(self, kernel_name: str) -> None:
+        """Update the kernel label with the new kernel name.
+
+        Args:
+            kernel_name: new kernel name.
+        """
+        self.kernel_label.update(f"Kernel: {kernel_name}")
 
 
 class Notebook(Container):
     """Container representing a notebook."""
-
-    last_focused: Cell | None = None  # keep track of the last focused cell
-    last_copied: Cell | None = None  # keep track of the copied/cut cell
-    _delete_stack: list[tuple[dict[str, Any], str, str]] = []
-    _merge_list: list[Cell] = []  # list of the cells to be merged.
-    _exec_queue: Queue = Queue()
-    _queue_lock: Lock = Lock()
 
     BINDINGS = [
         Binding("a", "add_cell_after", "Add Cell After", False),
@@ -75,6 +80,13 @@ class Notebook(Container):
     def __init__(self, path: str, id: str, term_app) -> None:
         super().__init__(id=id)
 
+        self.last_focused: Cell | None = None  # keep track of the last focused cell
+        self.last_copied: Cell | None = None  # keep track of the copied/cut cell
+        self._delete_stack: list[tuple[dict[str, Any], str, str]] = []
+        self._merge_list: list[Cell] = []  # list of the cells to be merged.
+        self._exec_queue: Queue = Queue()
+        self._queue_lock: Lock = Lock()
+
         self.path = path
         self.notebook_kernel = NotebookKernel()
         self.term_app = term_app
@@ -91,7 +103,8 @@ class Notebook(Container):
             - VerticalScroll (id=cell-container)
                 - Cell
         """
-        yield ButtonRow()
+        self.btn_row = ButtonRow()
+        yield self.btn_row
         self.cell_container = VerticalScroll(id="cell-container")
         yield self.cell_container
 
@@ -113,8 +126,9 @@ class Notebook(Container):
 
         return self.notebook_kernel.initialized
 
-    def _is_new_notebook(self) -> None:
+    def _is_new_notebook(self) -> bool:
         """Checks if notebook is new."""
+        if isinstance(self.path, Path): return False
         return self.path[:len(DEFAULT_FILE_NAME)] == DEFAULT_FILE_NAME and self.path[len(DEFAULT_FILE_NAME):].isdigit()
 
     async def on_mount(self) -> None:
@@ -125,7 +139,11 @@ class Notebook(Container):
             if self.path.exists():
                 self.call_after_refresh(self.load_notebook)
 
-        self._is_kernel_connected()
+        if self._is_kernel_connected():
+            self.btn_row.kernel_name = self.notebook_kernel.display_name
+
+        self.call_next(self.focus_file)
+
         self.run_worker(self.notebook_executor, thread=True)
 
     def on_unmount(self) -> None:
@@ -212,8 +230,6 @@ class Notebook(Container):
                 await self.run_cells_after()
             case "run-before":
                 await self.run_cells_before()
-            case "toggle-cell-type":
-                await self.toggle_cell_type()
 
     async def action_add_cell_after(self) -> None:
         """Add code cell after current cell."""
@@ -252,7 +268,7 @@ class Notebook(Container):
         """Save notebook."""
         # notebooks with path 'new_empty_terminal_notebook' were created by terminal-notebook
         # need save_as call to get file name
-        if self.path == "new_empty_terminal_notebook":
+        if self._is_new_notebook():
             self.action_save_as()
         else:
             # notify after successfuly serializing and saving notebook
@@ -562,23 +578,20 @@ class Notebook(Container):
                 self.term_app.remove_tab(str(self.path))
                 return
 
-            for idx, cell in enumerate(content["cells"]):
-                if cell["cell_type"] == "code":
-                    widget = CodeCell.from_nb(cell, self)
-                elif cell["cell_type"] == "markdown":
-                    widget = MarkdownCell.from_nb(cell, self)
+        for idx, cell in enumerate(content["cells"]):
+            if cell["cell_type"] == "code":
+                widget = CodeCell.from_nb(cell, self)
+            elif cell["cell_type"] == "markdown":
+                widget = MarkdownCell.from_nb(cell, self)
 
-                if idx != 0:
-                    prev.next = widget
-                    widget.prev = prev
-                else:
-                    self.last_focused = widget
+            if idx != 0:
+                prev.next = widget
+                widget.prev = prev
+            else:
+                self.last_focused = widget
 
-                prev = widget
-                self.call_next(self.cell_container.mount, widget)
-            
-            self.call_next(self.focus_file)
-            self.notebook_kernel.initialize()
+            prev = widget
+            self.call_next(self.cell_container.mount, widget)
 
     async def add_cell(
         self,

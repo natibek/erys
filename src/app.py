@@ -179,8 +179,6 @@ class Erys(App):
         else:
             file_id = self.path_to_tab_id[str(event.tab.label)]
             self.switcher.current = f"{file_id}"
-            file = self.switcher.query_one(f"#{file_id}", Notebook | File)
-            file.focus_file()
 
     def on_directory_tree_file_selected(
         self, event: DirectoryTree.FileSelected
@@ -306,24 +304,23 @@ class Erys(App):
         path = os.path.relpath(path, Path.cwd())
 
         if path in self.path_to_tab_id:
-            self.tabs.active = self.path_to_tab_id[path]
+            tab_id = self.path_to_tab_id[path]
+            self.tabs.active = tab_id
             return
 
         tab_id = f"tab{self.cur_tab}"
+        self.tabs.add_tab(Tab(path, id=tab_id))
+        self.path_to_tab_id[path] = tab_id
 
         if Path(path).suffix == ".ipynb":
             new_file = Notebook(path, tab_id, self)
         else:
             new_file = File(path, tab_id, self)
 
-        self.tabs.add_tab(Tab(path, id=tab_id))
+        self.switcher.mount(new_file)
 
         self.tabs.active = tab_id
-
-        self.switcher.mount(new_file)
-        self.path_to_tab_id[path] = tab_id
         self.cur_tab += 1
-
 
 def main():
     parser = ArgumentParser(
