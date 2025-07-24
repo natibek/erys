@@ -151,14 +151,15 @@ class NotebookKernel:
         """
 
         executable = str(Path(self.venv_path).joinpath("bin/python"))
+        cmd = [executable, "-c", "import importlib.util; print(importlib.util.find_spec('ipykernel') is not None)"]
         result = subprocess.run(
-            [executable, "-m", "pip", "freeze"],
+            cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
             check=True
         )
-        return any("ipykernel" == package.split("==")[0] for package in result.stdout.splitlines())
+        return eval(result.stdout)
 
     def _get_available_kernels(self) -> dict[str, str]:
         """Find all the available kernels in the current environment.
