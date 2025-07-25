@@ -21,7 +21,7 @@ class NotebookName(Validator):
         Returns: validation result based on whether extension is correct.
         """
         ext = Path(value).suffix
-        if ext == ".ipynb":
+        if ext == ".ipynb" or ext == "":
             return self.success()
         else:
             return self.failure("File extension is not .ipynb.")
@@ -145,10 +145,12 @@ class SaveAsScreen(Screen[str | None]):
         """
         if self.is_notebook:
             if event.validation_result.is_valid:
-                file_path = self.dir_tree.path.joinpath(event.value)
+                file_name = event.value if event.value.endswith(".ipynb") else event.value.strip() + ".ipynb"
+                file_path = self.dir_tree.path.joinpath(file_name)
                 self.dismiss(file_path)
             else:
-                self.notify(event.validation_result.failure_descriptions, severity="error")
+                output = event.validation_result.failure_descriptions[0]
+                self.notify(output, severity="error")
         else:
             file_path = self.dir_tree.path.joinpath(event.value)
             self.dismiss(file_path)
