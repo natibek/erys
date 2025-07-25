@@ -119,7 +119,7 @@ class Erys(App):
         )
         self.cur_tab = len(paths)
         self.path_to_tab_id: dict[str, int] = {}  # maps from tab id to notebook id
-        
+
         self.dir_tree = DirectoryNav(Path.cwd(), id="file-tree")
         self.switcher = ContentSwitcher(id="tab-content")
 
@@ -159,7 +159,9 @@ class Erys(App):
         """
         self.install_screen(QuitScreen, "quit_screen")
         self.install_screen(lambda: SaveAsScreen(is_notebook=True), "nb_save_as_screen")
-        self.install_screen(lambda: SaveAsScreen(is_notebook=False), "file_save_as_screen")
+        self.install_screen(
+            lambda: SaveAsScreen(is_notebook=False), "file_save_as_screen"
+        )
 
         if len(self.paths) == 0:
             self.dir_tree.display = True
@@ -207,7 +209,9 @@ class Erys(App):
 
                 # if currently focused on the tabs, change focus to the latest notebook
                 if isinstance(self.app.focused, Tabs):
-                    file = self.switcher.query_one(f"#{self.switcher.current}", Notebook | File)
+                    file = self.switcher.query_one(
+                        f"#{self.switcher.current}", Notebook | File
+                    )
                     file.focus_file()
 
     def action_toggle_directory_tree(self) -> None:
@@ -256,7 +260,7 @@ class Erys(App):
 
     def change_tab_name(self, tab_id: str, new_path: str) -> None:
         """Update the key in the map from path to tab id when a saved is saved as new.
-        
+
         Args:
             tab_id: the tab id for the notebook with the new path.
             new_path: the new path for the file.
@@ -271,7 +275,7 @@ class Erys(App):
 
         target_tab.update(path)
         self.path_to_tab_id[path] = tab_id
-        
+
         # reload the directory tree
         self.dir_tree.path = self.dir_tree.path
 
@@ -295,9 +299,9 @@ class Erys(App):
             self.switcher.current = None
 
     def open_file(self, path: Path) -> None:
-        """Open a file. Either change tabs to the file if it is already loaded or 
+        """Open a file. Either change tabs to the file if it is already loaded or
         create a new file (notebook or regular) in a new tab and swtich to that tab.
-        
+
         Args:
             path: path to the file.
         """
@@ -322,13 +326,15 @@ class Erys(App):
         self.tabs.active = tab_id
         self.cur_tab += 1
 
+
 def main():
     parser = ArgumentParser(
-        "erys",
-        description="Terminal Interface for Jupyter Notebooks."
+        "erys", description="Terminal Interface for Jupyter Notebooks."
     )
 
-    parser.add_argument("notebooks", nargs="*", help="One or more notebooks to open", type=Path)
+    parser.add_argument(
+        "notebooks", nargs="*", help="One or more notebooks to open", type=Path
+    )
     parser.add_argument("--version", action="version", version=__version__)
     args = parser.parse_args()
 

@@ -12,7 +12,14 @@ from pathlib import Path
 import time
 
 from .markdown_cell import MarkdownCell
-from .code_cell import CodeCell, CodeArea, ExecStatus, OutputText, OutputJson, OutputAnsi
+from .code_cell import (
+    CodeCell,
+    CodeArea,
+    ExecStatus,
+    OutputText,
+    OutputJson,
+    OutputAnsi,
+)
 from .cell import CopyTextArea, Cell, StaticBtn
 from .notebook_kernel import NotebookKernel
 from .exec_queue import Queue
@@ -24,6 +31,7 @@ DEFAULT_FILE_NAME = "erys_notebook"
 
 class ButtonRow(HorizontalScroll):
     """Buttton row on top of Notebook"""
+
     kernel_name: str = var("", init=False)
 
     def compose(self) -> ComposeResult:
@@ -47,7 +55,6 @@ class ButtonRow(HorizontalScroll):
         yield StaticBtn("🔁 Restart", id="restart-shell")
         self.kernel_label = Static(f"Kernel: {self.kernel_name}", id="kernel-name")
         yield self.kernel_label
-
 
     def watch_kernel_name(self, kernel_name: str) -> None:
         """Update the kernel label with the new kernel name.
@@ -95,7 +102,6 @@ class Notebook(Container):
         self._nbformat: int = 4
         self._nbformat_minor: int = 5
 
-
     def compose(self) -> ComposeResult:
         """Composed with:
         - Container
@@ -128,8 +134,12 @@ class Notebook(Container):
 
     def _is_new_notebook(self) -> bool:
         """Checks if notebook is new."""
-        if isinstance(self.path, Path): return False
-        return self.path[:len(DEFAULT_FILE_NAME)] == DEFAULT_FILE_NAME and self.path[len(DEFAULT_FILE_NAME):].isdigit()
+        if isinstance(self.path, Path):
+            return False
+        return (
+            self.path[: len(DEFAULT_FILE_NAME)] == DEFAULT_FILE_NAME
+            and self.path[len(DEFAULT_FILE_NAME) :].isdigit()
+        )
 
     async def on_mount(self) -> None:
         """Mount event handler that loads a notebook if path is provided."""
@@ -257,7 +267,7 @@ class Notebook(Container):
                 self.save_notebook(path)
                 self.notify(f"{self.path} saved!")
                 # open the saved notebook
-                
+
                 # change the tab name
                 self.term_app.change_tab_name(self.id, self.path)
 
@@ -510,7 +520,7 @@ class Notebook(Container):
         while self.notebook_kernel.initialized:
             code_cell: CodeCell = self._exec_queue.dequeue()
 
-            if  code_cell is None: # sentinel for exiting
+            if code_cell is None:  # sentinel for exiting
                 break
             src = code_cell.input_text.text
 
@@ -574,7 +584,10 @@ class Notebook(Container):
                 # if the json decoding fails then the notebook is bad
                 content = json.load(notebook_file)
             except json.JSONDecodeError:
-                self.notify(f"{self.path} is not a valid notebook. Failed to decode JSON.", severity="error")
+                self.notify(
+                    f"{self.path} is not a valid notebook. Failed to decode JSON.",
+                    severity="error",
+                )
                 self.term_app.remove_tab(str(self.path))
                 return
 

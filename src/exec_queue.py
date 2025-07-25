@@ -2,6 +2,7 @@ from collections import deque
 from typing import Any
 from threading import Condition
 
+
 class Queue:
     """Custom thread safe queue to use for producer/consumer code cell execution."""
 
@@ -31,7 +32,7 @@ class Queue:
 
     def clear(self) -> list[Any]:
         """Clear queue and return previous elements.
-        
+
         Returns elements of the queue before clearing.
         """
         with self.condition:
@@ -46,7 +47,7 @@ class Queue:
 
     def push_left(self, val: Any) -> None:
         """Add element to the begining of the queue.
-        
+
         Args:
             val: element to add.
         """

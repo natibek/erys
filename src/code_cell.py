@@ -55,12 +55,14 @@ class OutputCollapseLabel(Label):
             code_cell.output_switcher.current = "outputs"
             self.styles.color = EXPANDED_COLOR
 
+
 class ExecStatus(Enum):
     """Status for code cell execution."""
-    IDLE=0
-    QUEUED=1
-    RUNNING=2
-    ERROR=3
+
+    IDLE = 0
+    QUEUED = 1
+    RUNNING = 2
+    ERROR = 3
 
 
 class RunLabel(Label):
@@ -68,14 +70,14 @@ class RunLabel(Label):
 
     status: ExecStatus = var(ExecStatus.IDLE, init=False)
     glyphs = {
-        ExecStatus.IDLE: "▶", 
-        ExecStatus.ERROR: "[red 50%]▶[/]", 
+        ExecStatus.IDLE: "▶",
+        ExecStatus.ERROR: "[red 50%]▶[/]",
         ExecStatus.RUNNING: "□",
         ExecStatus.QUEUED: "..",
     }  # glyphs representing running state
     toolips = {
-        ExecStatus.IDLE: "Idle: Run", 
-        ExecStatus.ERROR: "Error: Run", 
+        ExecStatus.IDLE: "Idle: Run",
+        ExecStatus.ERROR: "Error: Run",
         ExecStatus.RUNNING: "Running: Interrupt",
         ExecStatus.QUEUED: "Queued: Interrupt",
     }
@@ -268,16 +270,10 @@ class OutputAnsi(VerticalScroll):
             text = ansi_string
 
         self.plain_string = self.remove_ansi(text)  # remove the ansi
-        self.pretty_string = Text.from_ansi(
-            text
-        )  # convert ansi to markup
+        self.pretty_string = Text.from_ansi(text)  # convert ansi to markup
 
-        self.static_output = Static(
-            content=self.pretty_string, id="pretty-output"
-        )
-        self.text_output = OutputText(
-            text=self.plain_string, id="plain-output"
-        )
+        self.static_output = Static(content=self.pretty_string, id="pretty-output")
+        self.text_output = OutputText(text=self.plain_string, id="plain-output")
 
     def compose(self) -> ComposeResult:
         """Composed of
@@ -316,7 +312,7 @@ class OutputAnsi(VerticalScroll):
         Returns: string without ansi escapes.
         """
         ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
-        return ansi_escape.sub("" , ansi_escaped_string)
+        return ansi_escape.sub("", ansi_escaped_string)
 
 
 class CodeCell(Cell):
@@ -619,8 +615,11 @@ class CodeCell(Cell):
         self.notebook._exec_queue.enqueue(self)
         self.status = ExecStatus.IDLE
         # self.handle_exec_completion(outputs, count)
-# 
-    def handle_exec_completion(self, outputs: list[dict[str, Any]], execution_count: int) -> None:
+
+    #
+    def handle_exec_completion(
+        self, outputs: list[dict[str, Any]], execution_count: int
+    ) -> None:
         self.exec_count = execution_count
         self.outputs = outputs
         self.call_next(self.update_outputs, outputs)  # update the output cells

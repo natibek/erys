@@ -47,7 +47,8 @@ class SaveAsScreen(Screen[str | None]):
             self.dir_tree = FilteredDirectoryTree(Path.cwd(), id="save-as-dir-tree")
         else:
             self.input = Input(
-                placeholder="File Name", id="save-as-input",
+                placeholder="File Name",
+                id="save-as-input",
             )
             self.dir_tree = DirectoryTree(Path.cwd(), id="save-as-dir-tree")
 
@@ -145,7 +146,11 @@ class SaveAsScreen(Screen[str | None]):
         """
         if self.is_notebook:
             if event.validation_result.is_valid:
-                file_name = event.value if event.value.endswith(".ipynb") else event.value.strip() + ".ipynb"
+                file_name = (
+                    event.value
+                    if event.value.endswith(".ipynb")
+                    else event.value.strip() + ".ipynb"
+                )
                 file_path = self.dir_tree.path.joinpath(file_name)
                 self.dismiss(file_path)
             else:

@@ -10,23 +10,24 @@ extension_to_language: dict[str, str] = {
     ".md": "markdown",
     ".yaml": "yaml",
     ".sh": "bash",
-    ".css":"css",
-    ".go":"go",
-    ".html":"html",
-    ".java":"java",
-    ".js":"javascript",
-    ".json":"json",
-    ".rs":"rust",
-    ".toml":"toml",
-    ".xml":"xml",
+    ".css": "css",
+    ".go": "go",
+    ".html": "html",
+    ".java": "java",
+    ".js": "javascript",
+    ".json": "json",
+    ".rs": "rust",
+    ".toml": "toml",
+    ".xml": "xml",
 }
+
 
 class FileEditor(CopyTextArea):
     def on_key(self, event: Key) -> None:
         """Handle key press event for saving and saving as.
 
         Args:
-            event: the Key event. 
+            event: the Key event.
         """
         file: File = self.parent
         match event.key:
@@ -40,6 +41,7 @@ class FileEditor(CopyTextArea):
 
 class File(Container):
     """Widget for rendering and editing contents of non-notebook files."""
+
     def __init__(self, path: str, id: str, term_app) -> None:
         super().__init__(id=id)
 
@@ -87,7 +89,7 @@ class File(Container):
                 self.save_file(path)
                 self.notify(f"{self.path} saved!")
                 # open the saved notebook
-                
+
                 # change the tab name
                 self.term_app.change_tab_name(self.id, self.path)
 
