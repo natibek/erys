@@ -208,7 +208,7 @@ class NotebookKernel:
         kernel_specs = self._get_available_kernels()
 
         if not kernel_specs:
-            return {}
+            return {}, ""
 
         target_kernel_spec = {}
         target_kernel_name = ""
