@@ -69,8 +69,8 @@ class Notebook(Container):
     """Container representing a notebook."""
 
     BINDINGS = [
-        Binding("a", "add_cell_after", "Add Cell After", False),
-        Binding("b", "add_cell_before", "Add Cell Before", False),
+        Binding("a", "add_cell_above", "Add Cell Above", False),
+        Binding("b", "add_cell_below", "Add Cell Below", False),
         Binding("t", "toggle_cell", "Toggle Cell Type", False),
         ("ctrl+d", "delete_cell", "Delete Cell"),
         ("ctrl+u", "undo", "Undo Delete"),
@@ -241,14 +241,14 @@ class Notebook(Container):
             case "run-before":
                 await self.run_cells_before()
 
-    async def action_add_cell_after(self) -> None:
-        """Add code cell after current cell."""
-        cell = await self.add_cell(CodeCell, self.last_focused, "after")
+    async def action_add_cell_above(self) -> None:
+        """Add code cell above current cell."""
+        cell = await self.add_cell(CodeCell, self.last_focused, "before")
         cell.focus()
 
-    async def action_add_cell_before(self) -> None:
-        """Add code cell before current cell."""
-        cell = await self.add_cell(CodeCell, self.last_focused, "before")
+    async def action_add_cell_below(self) -> None:
+        """Add code cell below current cell."""
+        cell = await self.add_cell(CodeCell, self.last_focused, "after")
         cell.focus()
 
     def action_save_as(self) -> str:

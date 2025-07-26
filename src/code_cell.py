@@ -549,7 +549,7 @@ class CodeCell(Cell):
                 case "error":
                     # display the errors with the `OutputError` widget
                     # {
-                    #   "output_type" : "stream",
+                    #   "output_type" : "error",
                     #   'ename' : str,   # Exception name, as a string
                     #   'evalue' : str,  # Exception value, as a string
                     #   'traceback' : list,
