@@ -14,6 +14,7 @@ from textual.containers import Horizontal, Vertical, Grid
 from textual.events import Key
 
 from pathlib import Path
+import os.path
 from argparse import ArgumentParser
 
 from . import __version__
@@ -109,7 +110,7 @@ class Erys(App):
         self.theme = "textual-dark"
         # check if the provided file paths are python notebooks
         self.paths = [
-            Path(path).relative_to(Path.cwd)
+            os.path.relpath(path, Path.cwd())
             for path in paths
             if (Path(path).exists() or Path(path).parent.is_dir())
         ]
@@ -267,7 +268,7 @@ class Erys(App):
         if tab_id not in self.path_to_tab_id:
             pass
 
-        path = Path(new_path).relative_to(Path.cwd())
+        path = os.path.relpath(new_path, Path.cwd())
         target_tab: Tab = self.tabs.query_one(f"#{tab_id}", Tab)
 
         del self.path_to_tab_id[target_tab.label]
@@ -304,7 +305,7 @@ class Erys(App):
         Args:
             path: path to the file.
         """
-        path = path.relative_to(Path.cwd())
+        path = os.path.relpath(path, Path.cwd())
 
         if path in self.path_to_tab_id:
             tab_id = self.path_to_tab_id[path]
