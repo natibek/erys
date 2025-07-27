@@ -1,6 +1,6 @@
 # ***`Erys`***: Terminal Interface for Jupyter Notebooks.
 
-![Demo](https://raw.githubusercontent.com/natibek/erys/main/data/erys_demo.mp4)
+![Demo](https://raw.githubusercontent.com/natibek/erys/main/data/demo.gif)
 
 **`Erys`** is a tool for opening, creating, editing, running, interacting with, and
 saving Jupyter Notebooks in the terminal as well as other text files. It uses [Textual](https://textual.textualize.io/)
