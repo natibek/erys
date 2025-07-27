@@ -1,6 +1,6 @@
 # ***`Erys`***: Terminal Interface for Jupyter Notebooks.
 
-![Demo](https://raw.githubusercontent.com/natibek/erys/main/data/demo.gif)
+![Demo](https://raw.githubusercontent.com/natibek/erys/main/data/erys_demo.mp4)
 
 **`Erys`** is a tool for opening, creating, editing, running, interacting with, and
 saving Jupyter Notebooks in the terminal as well as other text files. It uses [Textual](https://textual.textualize.io/)
@@ -40,7 +40,7 @@ $ pipx install erys
 ## Using `Erys`
 
 Calling `$ erys` in the terminal without any arguments launches the application with an empty notebook.
-Using the directory tree docked on the left, notebooks and other files can be loaded into the app. 
+Using the directory tree docked on the left, notebooks and other files can be loaded into the app.
 `backspace` will take you up a directory and `enter` will go into a directory.
 
 ![Directory Tree](https://raw.githubusercontent.com/natibek/erys/main/data/directory-tree.png)
@@ -67,7 +67,7 @@ Use the up and down arrow keys within a notebook to traverse the cells. Pressing
 on the text area of the cell. `escape` will blur out of the text area and focus on the parent cell.
 Cells have more functionality which are stated in the [Cell Key Bindings](#cell-key-bindings) section.
 
-**`Erys`** must be launched in a python environment with `ipykernel` installed to execute code cells. 
+**`Erys`** must be launched in a python environment with `ipykernel` installed to execute code cells.
 Here is a simple environment in which **`Erys`** can be used to execute code:
 
 ```bash
@@ -82,7 +82,7 @@ $ erys
 If using **`Erys`** over ssh, use X11 forwarding to get the rendered images and html. These two
 outputs use the separate windows for rendering.
 
---- 
+---
 
 ## Features:
 
@@ -105,12 +105,12 @@ is executed is the one in which the **`Erys`** is opened. Also, if `ipykernel` i
 `Python` environment, code cells can not be executed. However, the notebook can still be edited and saved.
 
 Each notebook has its own kernel manager and kernel client. Hence, there is no leaking environment from
-notebook to notebook within the application. However, all notebook opened in the same **`Erys`** process 
+notebook to notebook within the application. However, all notebook opened in the same **`Erys`** process
 are in the same `Python` environment.
 
 A running code cell can be interrupted by pressing the interrupt button `□` on the left.
 
-### Rendering 
+### Rendering
 
 **`Erys`** handles terminal rendering for:
 1. Markdown: Rendered with `Markdown` widget from `Textual`.
@@ -123,7 +123,7 @@ A running code cell can be interrupted by pressing the interrupt button `□` on
 
 ![Pretty and plain error](https://raw.githubusercontent.com/natibek/erys/main/data/pretty-plain-error.gif)
 
-**`Erys`** parses image/png and text/html outputs from code cell execution and renders them outside of the 
+**`Erys`** parses image/png and text/html outputs from code cell execution and renders them outside of the
 terminal. Press on the `🖼 IMG` and `🖼 HTML` buttons to render them respectively. Images are rendered
 using `Pillow` and html is rendered in the default browser using `webbrowser`.
 
@@ -155,7 +155,7 @@ It also supports syntax highlighting via [tree-sitter](https://pypi.org/project/
 |.toml|Toml|
 |.xml|Xml|
 
---- 
+---
 
 ## Cell Functionalities:
 
@@ -182,12 +182,12 @@ cell wil be of the same type as the first selected cell. The cells selected for 
 
 ![Moving](https://raw.githubusercontent.com/natibek/erys/main/data/move_cell.gif)
 
-1. Copy/Cut Paste: A cell can be copied or cut and pasted. It is pasted after the currently focused cell. 
+1. Copy/Cut Paste: A cell can be copied or cut and pasted. It is pasted after the currently focused cell.
 The new cell will have a different id than the original. Cut can be undone.
 
 1. Deleting: A cell can be deleted. Deletion can be undone.
 
---- 
+---
 
 ## Key Bindings:
 
@@ -257,15 +257,15 @@ The new cell will have a different id than the original. Cut can be undone.
 1. Ask to save editted files on exit
 1. Mime output types rendering
 
---- 
+---
 
 ## Contributing
 
 Pull requests and feedback are welcome! Create issues and PRs that can help improve and grow
 the project.
 
---- 
+---
 
 ## License
 
-This project is licensed under the Apache-2.0 License. 
+This project is licensed under the Apache-2.0 License.
