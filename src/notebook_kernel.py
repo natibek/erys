@@ -37,7 +37,7 @@ class NotebookKernel:
         self.kernel_client: BlockingKernelClient = None
         self.kernel_manager: KernelManager = None
 
-        if self.in_venv:
+        if self.venv_path:
             if self._check_for_ipykernel():
                 # only attempt to connect to the kernel if ipykernel is installed
                 self.kernel_path = Path(self.venv_path).joinpath("share/jupyter/")
@@ -78,7 +78,7 @@ class NotebookKernel:
         """
         self.shutdown_kernel()  # will shutdown existing client channels and kernel manager
 
-        kernel_spec = self._get_target_kernel_spec(kernel_name=kernel_name)
+        kernel_spec, _ = self._get_target_kernel_spec(kernel_name=kernel_name)
 
         if kernel_spec:
             self.connect_to_kernel(kernel_spec, kernel_name)
@@ -141,6 +141,7 @@ class NotebookKernel:
         Returns the created kernel spec.
         """
         spec_path = self.kernel_path.joinpath(f"kernels/{kernel_name}")
+        assert self.venv_path
         argv = [
             str(Path(self.venv_path).joinpath("bin/python")),
             "-Xfrozen_modules=off",
@@ -170,7 +171,7 @@ class NotebookKernel:
 
         Returns: whether `ipykernel` is installed in environment.
         """
-
+        assert self.venv_path
         executable = str(Path(self.venv_path).joinpath("bin/python"))
         cmd = [
             executable,
@@ -186,7 +187,7 @@ class NotebookKernel:
         )
         return eval(result.stdout)
 
-    def _get_available_kernels(self) -> dict[str, str]:
+    def _get_available_kernels(self) -> dict[str, dict[str, Any]]:
         """Find all the available kernels in the current environment.
 
         Retuns a dictionary with kernel name as key and resource dir as value.
@@ -204,7 +205,9 @@ class NotebookKernel:
         """
         kernel_cmd: list[str] = kernel_spec["argv"]
         if kernel_cmd[0] in ["python", "python2", "python3"]:
-            kernel_cmd[0] = shutil.which(kernel_cmd[0])
+            cmd = shutil.which(kernel_cmd[0])
+            assert cmd
+            kernel_cmd[0] = cmd
 
         if "-Xfrozen_modules=off" not in kernel_cmd:
             kernel_cmd.insert(1, "-Xfrozen_modules=off")
@@ -226,6 +229,7 @@ class NotebookKernel:
 
         target_kernel_spec = {}
         target_kernel_name = ""
+        assert self.venv_path
         for name, spec in kernel_specs.items():
             resource_dir = spec["resource_dir"]
             if Path(resource_dir).is_relative_to(self.venv_path):
@@ -283,7 +287,7 @@ class NotebookKernel:
         finally:
             return language_info
 
-    def run_code(self, code: str) -> list[dict[str, Any]]:
+    def run_code(self, code: str) -> tuple[list[dict[str, Any]], int]:
         """Run provided code string with the kernel. Uses the iopub channel to get results.
 
         Args:
@@ -292,13 +296,13 @@ class NotebookKernel:
         Returns: the outputs of executing the code with the kernel.
         """
         if not self.initialized:
-            return None
+            return [], 0
 
         self.kernel_client.execute(code)
 
         # Read the output from the iopub channel
         outputs = []
-        execution_count = None
+        execution_count = 0
         while True:
             try:
                 msg = self.kernel_client.get_iopub_msg()
