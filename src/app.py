@@ -132,7 +132,7 @@ class Erys(App):
             *[Tab(path, id=f"tab{idx}") for idx, path in enumerate(self.paths)]
         )
         self.cur_tab = len(paths)
-        self.path_to_tab_id: dict[str, int] = {}  # maps from tab id to notebook id
+        self.path_to_tab_id: dict[str, str] = {}  # maps from tab id to notebook id
 
         self.dir_tree = DirectoryNav(Path.cwd(), id="file-tree")
         self.switcher = ContentSwitcher(id="tab-content")
@@ -223,9 +223,8 @@ class Erys(App):
 
                 # if currently focused on the tabs, change focus to the latest notebook
                 if isinstance(self.app.focused, Tabs):
-                    file = self.switcher.query_one(
-                        f"#{self.switcher.current}", Notebook | File
-                    )
+                    file = self.switcher.query_one(f"#{self.switcher.current}")
+                    assert isinstance(file, Notebook | File)
                     file.focus_file()
 
     def action_toggle_directory_tree(self) -> None:
@@ -234,7 +233,8 @@ class Erys(App):
         if self.dir_tree.display:
             self.set_focus(self.dir_tree)
         elif cur_file := self.switcher.current:
-            file = self.switcher.query_one(f"#{cur_file}", Notebook | File)
+            file = self.switcher.query_one(f"#{cur_file}")
+            assert isinstance(file, Notebook | File)
             file.focus_file()
         else:
             self.set_focus(self.tabs)
@@ -260,7 +260,8 @@ class Erys(App):
     def action_close(self) -> None:
         """Remove active tab."""
         active_tab = self.tabs.active_tab
-        self.remove_tab(active_tab.label)
+        if active_tab:
+            self.remove_tab(str(active_tab.label))
 
     def action_clear(self) -> None:
         """Clear the tabs."""
@@ -285,7 +286,7 @@ class Erys(App):
         path = os.path.relpath(new_path, Path.cwd())
         target_tab: Tab = self.tabs.query_one(f"#{tab_id}", Tab)
 
-        del self.path_to_tab_id[target_tab.label]
+        del self.path_to_tab_id[str(target_tab.label)]
 
         target_tab.update(path)
         self.path_to_tab_id[path] = tab_id
@@ -306,21 +307,20 @@ class Erys(App):
         if target_tab is not None:
             self.tabs.remove_tab(target_tab.id)
             self.switcher.remove_children(f"#{tab_id}")
-            del self.path_to_tab_id[target_tab.label]
+            del self.path_to_tab_id[str(target_tab.label)]
 
         # set the switcher's currently displayed widget to none to avoid errors
         if len(self.path_to_tab_id) == 0:
             self.switcher.current = None
 
-    def open_file(self, path: Path) -> None:
+    def open_file(self, f_path: Path) -> None:
         """Open a file. Either change tabs to the file if it is already loaded or
         create a new file (notebook or regular) in a new tab and swtich to that tab.
 
         Args:
             path: path to the file.
         """
-        path = os.path.relpath(path, Path.cwd())
-
+        path = str(os.path.relpath(f_path, Path.cwd()))
         if path in self.path_to_tab_id:
             tab_id = self.path_to_tab_id[path]
             self.tabs.active = tab_id
