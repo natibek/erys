@@ -142,7 +142,7 @@ class MarkdownCell(Cell):
             "id": self._cell_id,
         }
 
-    def create_cell(self, source) -> "MarkdownCell":
+    def create_cell(self, source: str) -> "MarkdownCell":
         """Returns a `MarkdownCell` with a source. Used for splitting code cell."""
         return MarkdownCell(self.notebook, source)
 

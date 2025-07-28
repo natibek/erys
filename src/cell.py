@@ -284,7 +284,7 @@ class Cell(VerticalGroup):
         if self.next:
             self.merge_cells_with_self([self.next])
 
-    def disconnect(self) -> tuple["Cell", str]:
+    def disconnect(self) -> tuple["Cell" | None, str]:
         """Remove self from the linked list of cells. Update the pointers of the surrounding cells
         to point to each other.
 
@@ -344,7 +344,7 @@ class Cell(VerticalGroup):
         """Static method to generate a `Cell` from a json/dict that represent a cell."""
         raise NotImplementedError()
 
-    def create_cell(self, str: str) -> "Cell":
+    def create_cell(self, source: str) -> "Cell":
         """Returns a `CodeCell` with a source. Used for splitting cell."""
         raise NotImplementedError()
 
