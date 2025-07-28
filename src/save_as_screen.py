@@ -48,7 +48,7 @@ class FilteredDirectoryTree(DirectoryTree):
         return [path for path in paths if path.suffix == ".ipynb" or path.is_dir()]
 
 
-class SaveAsScreen(Screen[str | None]):
+class SaveAsScreen(Screen[Path | None]):
     def __init__(self, is_notebook: bool) -> None:
         super().__init__()
         self.is_notebook = is_notebook
@@ -159,17 +159,18 @@ class SaveAsScreen(Screen[str | None]):
             event: input submitted event.
         """
         if self.is_notebook:
+            assert event.validation_result
             if event.validation_result.is_valid:
                 file_name = (
                     event.value
                     if event.value.endswith(".ipynb")
                     else event.value.strip() + ".ipynb"
                 )
-                file_path = self.dir_tree.path.joinpath(file_name)
+                file_path = Path(self.dir_tree.path).joinpath(file_name)
                 self.dismiss(file_path)
             else:
                 output = event.validation_result.failure_descriptions[0]
                 self.notify(output, severity="error")
         else:
-            file_path = self.dir_tree.path.joinpath(event.value)
+            file_path = Path(self.dir_tree.path).joinpath(event.value)
             self.dismiss(file_path)

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from textual.widgets import TextArea, Label, Static
+from textual.widgets import TextArea, Label, Static, ContentSwitcher
 from textual.events import MouseDown, Key, Enter, Leave
 from textual.reactive import var
 from textual.containers import VerticalGroup
@@ -167,17 +167,14 @@ class SplitTextArea(CopyTextArea):
 
 class Cell(VerticalGroup):
     """Base class for the markdown and code cell."""
-
     can_focus = True
-    _last_click_time: float = 0.0  # keep track of the last mouse click
     merge_select: var[bool] = var(False, init=False)  # whether cell is selected for merging
 
-    # pointers to the next and prevous cells in the notebook
-    next: "Cell | None" = None
-    prev: "Cell | None" = None
-
     # name of the cell type
-    cell_type = ""
+    cell_type: str
+    input_text: SplitTextArea
+    switcher: ContentSwitcher
+    exec_count_display: Static
 
     BINDINGS = [
         Binding("c", "collapse", "Collapse Cell", False),
@@ -207,6 +204,11 @@ class Cell(VerticalGroup):
         ).with_tooltip("Collapse")
 
         self.collapsed_display = Static("", id="collapsed-display")
+        #
+        # pointers to the next and prevous cells in the notebook
+        self.next: "Cell | None" = None
+        self.prev: "Cell | None" = None
+        self._last_click_time: float = 0.0  # keep track of the last mouse click
 
     async def on_key(self, event: Key) -> None:
         """Key press event handler to 'open' the `Cell` when enter is pressed.

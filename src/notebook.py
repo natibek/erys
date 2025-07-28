@@ -102,8 +102,8 @@ class Notebook(Container):
         super().__init__(id=id)
 
         self.last_focused: Cell | None = None  # keep track of the last focused cell
-        self.last_copied: Cell | None = None  # keep track of the copied/cut cell
-        self._delete_stack: list[tuple[dict[str, Any], str, str]] = []
+        self.last_copied: dict[str, Any] | None = None  # keep track of the copied/cut cell
+        self._delete_stack: list[tuple[dict[str, Any], str, str | None]] = []
         self._merge_list: list[Cell] = []  # list of the cells to be merged.
         self._exec_queue: Queue = Queue()
         self._queue_lock: Lock = Lock()
@@ -266,7 +266,7 @@ class Notebook(Container):
         cell = await self.add_cell(CodeCell, self.last_focused, "after")
         cell.focus()
 
-    def action_save_as(self) -> str:
+    def action_save_as(self) -> None:
         """Save notebook as a new file."""
 
         def check_save_as(path: Path | None) -> None:
@@ -321,7 +321,11 @@ class Notebook(Container):
         self.delete_cell()
 
     async def action_paste_cell(self) -> None:
-        """Paste cut/copied cell."""
+        """Paste cut/copied cell.
+
+        Raises:
+            - ValueError: if the cell_type is unknown for any of the copied cells.
+        """
         if not self.last_copied:
             return
 
@@ -333,6 +337,8 @@ class Notebook(Container):
                 widget = MarkdownCell.from_nb(self.last_copied, self)
             case "code":
                 widget = CodeCell.from_nb(self.last_copied, self)
+            case bad_cell:
+                raise ValueError(f"Unknown cell type {bad_cell}")
 
         # mount and connect the widget
         await self.cell_container.mount(widget, after=self.last_focused)
@@ -367,7 +373,8 @@ class Notebook(Container):
             await self.cell_container.mount(clone, before=clone.next)
 
             self.last_focused = clone
-            self.last_focused.focus()
+            if self.last_focused:
+                self.last_focused.focus()
 
     async def action_move_down(self) -> None:
         """Move the cell down."""
@@ -399,7 +406,9 @@ class Notebook(Container):
             await self.cell_container.mount(clone, after=clone.prev)
 
             self.last_focused = clone
-            self.last_focused.focus()
+
+            if self.last_focused:
+                self.last_focused.focus()
 
     def action_merge_cells(self) -> None:
         """Merge selected cells by combining content in text areas into the one selected. Should be
@@ -408,7 +417,7 @@ class Notebook(Container):
         """
         if len(self._merge_list) < 2:
             return
-        target: CodeCell | MarkdownCell = self._merge_list[0]
+        target: Cell = self._merge_list[0]
         target.merge_cells_with_self(self._merge_list[1:])
         target.merge_select = False
         self._merge_list = []
@@ -426,6 +435,9 @@ class Notebook(Container):
         with the id stored and mount relative to it with the stored position. If the query by id
         fails, just place relative to the `last_focused` cell. If the stored id is
         None, then widget was the only cell in the notebook when it was deleted.
+
+        Raises:
+            - ValueError: if the cell_type is unknown for any of the copied cells.
         """
         if len(self._delete_stack) == 0:
             return
@@ -439,6 +451,8 @@ class Notebook(Container):
                 widget = MarkdownCell.from_nb(last_delete, self)
             case "code":
                 widget = CodeCell.from_nb(last_delete, self)
+            case bad_cell:
+                raise ValueError(f"Unknown cell type {bad_cell}")
 
         if relative_to_id:
             try:
@@ -501,7 +515,9 @@ class Notebook(Container):
             if isinstance(cell, CodeCell):
                 cell.status = ExecStatus.QUEUED
                 self._exec_queue.enqueue(cell)
-        self.last_focused.focus()
+
+        if self.last_focused:
+            self.last_focused.focus()
 
     async def run_cells_after(self) -> None:
         """Run code cells after currently focused cell (inclusive)."""
@@ -576,7 +592,7 @@ class Notebook(Container):
         else:
             self.call_next(self.cell_container.focus)
 
-    def save_notebook(self, path: str) -> None:
+    def save_notebook(self, path: str | Path) -> None:
         """Saves the notebook to the provided path.
 
         Args:
@@ -592,6 +608,7 @@ class Notebook(Container):
         """
         with open(self.path, "r") as notebook_file:
             # if the file is empty, trying to decode json will fail so early exit.
+            assert isinstance(self.path, Path)
             if self.path.stat().st_size == 0:
                 return
 
@@ -606,13 +623,17 @@ class Notebook(Container):
                 self.term_app.remove_tab(str(self.path))
                 return
 
+        prev: Cell | None = None
         for idx, cell in enumerate(content["cells"]):
             if cell["cell_type"] == "code":
                 widget = CodeCell.from_nb(cell, self)
             elif cell["cell_type"] == "markdown":
                 widget = MarkdownCell.from_nb(cell, self)
+            else:
+                raise KeyError(f"Unrecognized cell type {cell['cell_type']}")
 
             if idx != 0:
+                assert isinstance(prev, Cell)
                 prev.next = widget
                 widget.prev = prev
             else:
@@ -623,11 +644,11 @@ class Notebook(Container):
 
     async def add_cell(
         self,
-        cell_type: CodeCell | MarkdownCell,
-        relative_to: CodeCell | MarkdownCell | None,
+        cell_type: Cell,
+        relative_to: Cell | None,
         position: str = "after",
         **cell_kwargs,
-    ) -> CodeCell | MarkdownCell:
+    ) -> Cell :
         """Add a cell by creating object of `cell_type` with arguments `cell_kwargs` with position
         `position` relative to the widget `relative_to`.
 
@@ -658,9 +679,8 @@ class Notebook(Container):
         """
         relative_to = self.last_focused if not relative_to else relative_to
 
-        if (
-            not relative_to
-        ):  # if no cell has been focused on, set the new cell as the focused
+        if not relative_to:
+        # if no cell has been focused on, set the new cell as the focused
             self.last_focused = widget
             self.last_focused.focus()
 
