@@ -46,7 +46,7 @@ DEFAULT_FILE_NAME = "erys_notebook"
 class ButtonRow(HorizontalScroll):
     """Buttton row on top of Notebook"""
 
-    kernel_name: str = var("", init=False)
+    kernel_name: var[str] = var("", init=False)
 
     def compose(self) -> ComposeResult:
         """Composed with:
@@ -234,6 +234,7 @@ class Notebook(Container):
         Args:
             event: click event.
         """
+        assert event.widget
         match event.widget.id:
             case "add-code-cell":
                 widget = await self.add_cell(CodeCell, self.last_focused, "after")
@@ -665,6 +666,7 @@ class Notebook(Container):
 
         # if positioning after last focused, add widget between last_focused and last_focused.next
         elif position == "after":
+            assert widget
             next = relative_to.next
             relative_to.next = widget
             widget.next = next

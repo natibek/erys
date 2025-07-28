@@ -56,7 +56,7 @@ class CollapseLabel(Label):
     ) -> None:
         super().__init__("\n┃\n┃", id=id)
         self.collapsed = collapsed
-        self.parent_cell: Cell = parent_cell
+        self.parent_cell = parent_cell
         self.prev_switcher = None
 
     def on_click(self) -> None:
@@ -130,6 +130,9 @@ class SplitTextArea(CopyTextArea):
     """Widget to contain text that can be split."""
 
     BINDINGS = [("ctrl+backslash", "split_cell", "Split Cell")]
+    def __init__(self, parent: "Cell", *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.parent_cell = parent
 
     def on_key(self, event: Key) -> None:
         """Key event handler. Copy selected text to system clipboard. Call escape event handler
@@ -142,25 +145,25 @@ class SplitTextArea(CopyTextArea):
             case "ctrl+c":
                 pyperclip.copy(self.selected_text)
             case "escape":
-                cell: Cell = self.parent.parent.parent
-                cell.escape(event)
+                self.parent_cell.escape(event)
 
     def action_split_cell(self) -> None:
         """Creates new cell of the same type as parent."""
 
-        # parent cell containing widget
-        cell: Cell = self.parent.parent.parent
         string_to_keep = self.get_text_range((0, 0), self.cursor_location)
         string_for_new_cell = self.text[len(string_to_keep) :]
 
         self.load_text(string_to_keep)
 
         # create and mount new cell of the same type as we are spliting from
-        new_cell = cell.create_cell(string_for_new_cell)
-        cell.notebook.cell_container.mount(new_cell, after=cell)
+        new_cell = self.parent_cell.create_cell(string_for_new_cell)
+        self.parent_cell.notebook.cell_container.mount(new_cell, after=self.parent_cell)
         # connect the new cell to the cells next and before it
-        cell.notebook.connect_widget(new_cell)
+        self.parent_cell.notebook.connect_widget(new_cell)
 
+    @classmethod
+    def code_editor(cls, parent: "Cell", *args, **kwargs) -> "SplitTextArea":
+        return cls(parent, *args, **kwargs)
 
 class Cell(VerticalGroup):
     """Base class for the markdown and code cell."""
@@ -170,8 +173,8 @@ class Cell(VerticalGroup):
     merge_select: var[bool] = var(False, init=False)  # whether cell is selected for merging
 
     # pointers to the next and prevous cells in the notebook
-    next = None
-    prev = None
+    next: "Cell | None" = None
+    prev: "Cell | None" = None
 
     # name of the cell type
     cell_type = ""
@@ -215,14 +218,14 @@ class Cell(VerticalGroup):
             case "enter":
                 await self.open()
 
-    def _on_focus(self):
+    def _on_focus(self, event) -> None:
         """Focus event handler that adds border."""
         if not self.merge_select:
             self.styles.border_left = "solid", "lightblue"
         # self.styles.border = "solid", "lightblue"
         # self.border_subtitle = self._language
 
-    def _on_blur(self):
+    def _on_blur(self, event) -> None:
         """Blur event handler that removes border if not selected for merge."""
         if not self.merge_select:
             self.styles.border = None
@@ -284,7 +287,7 @@ class Cell(VerticalGroup):
         if self.next:
             self.merge_cells_with_self([self.next])
 
-    def disconnect(self) -> tuple["Cell" | None, str]:
+    def disconnect(self) -> tuple["Cell | None", str]:
         """Remove self from the linked list of cells. Update the pointers of the surrounding cells
         to point to each other.
 
@@ -350,4 +353,8 @@ class Cell(VerticalGroup):
 
     def clone(self, connect: bool = True):
         """Clone a code cell. Used for cut/paste."""
+        raise NotImplementedError()
+
+    async def open(self) -> None:
+        """Defines what it means to open a cell."""
         raise NotImplementedError()

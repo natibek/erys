@@ -15,12 +15,11 @@
 from __future__ import annotations
 
 from textual.app import ComposeResult
-from textual.reactive import var
+from textual.reactive import var, reactive
 from textual.containers import HorizontalGroup, VerticalGroup, VerticalScroll
 from textual.widgets import Static, Label, ContentSwitcher, Pretty
 from textual.events import Key, DescendantBlur, Click
 
-from asyncio import to_thread
 import re
 import tempfile
 import webbrowser
@@ -46,9 +45,10 @@ class OutputCollapseLabel(Label):
 
     collapsed = var(False, init=False)  # keep track of collapse state
 
-    def __init__(self, collapsed: bool = False, id: str = "") -> None:
+    def __init__(self, parent: "CodeCell", collapsed: bool = False, id: str = "") -> None:
         super().__init__("\n┃", id=id)
         self.collapsed = collapsed
+        self.parent_cell = parent
 
     def on_click(self) -> None:
         """Toggle the collapsed state on clicks."""
@@ -60,13 +60,11 @@ class OutputCollapseLabel(Label):
         Args:
             collapsed: updated collapsed state.
         """
-        code_cell: CodeCell = self.parent.parent
-
-        if collapsed and len(code_cell.outputs) > 0:
-            code_cell.output_switcher.current = "collapsed-output"
+        if collapsed and len(self.parent_cell.outputs) > 0:
+            self.parent_cell.output_switcher.current = "collapsed-output"
             self.styles.color = COLLAPSED_COLOR
         else:
-            code_cell.output_switcher.current = "outputs"
+            self.parent_cell.output_switcher.current = "outputs"
             self.styles.color = EXPANDED_COLOR
 
 
@@ -82,7 +80,7 @@ class ExecStatus(Enum):
 class RunLabel(Label):
     """Custom label used as button for running/interrupting code cell."""
 
-    status: ExecStatus = var(ExecStatus.IDLE, init=False)
+    status: var[ExecStatus] = var(ExecStatus.IDLE, init=False)
     glyphs = {
         ExecStatus.IDLE: "▶",
         ExecStatus.ERROR: "[red 50%]▶[/]",
@@ -96,18 +94,18 @@ class RunLabel(Label):
         ExecStatus.QUEUED: "Queued: Interrupt",
     }
 
-    def __init__(self, id: str = "") -> None:
+    def __init__(self, code_cell: CodeCell, id: str = "") -> None:
         super().__init__(self.glyphs[ExecStatus.IDLE], id=id)
         self.tooltip = self.toolips[ExecStatus.IDLE]
+        self.code_cell = code_cell
 
     async def on_click(self) -> None:
         """Button to run or interrupt code cell."""
-        code_cell: CodeCell = self.parent.parent.parent.parent
 
         if self.status in [ExecStatus.IDLE, ExecStatus.ERROR]:
-            await code_cell.run_cell()
+            await self.code_cell.run_cell()
         elif self.status in [ExecStatus.RUNNING, ExecStatus.QUEUED]:
-            code_cell.interrupt_cell()
+            self.code_cell.interrupt_cell()
 
     def watch_status(self, status: ExecStatus) -> None:
         """Watcher method to update the glyph and the tooltip depending on running state.
@@ -132,9 +130,9 @@ class CodeArea(SplitTextArea):
         """
         if event.key == "ctrl+r":
             event.stop()
-            code_cell: CodeCell = self.parent.parent.parent
-            if code_cell.status in [ExecStatus.IDLE, ExecStatus.ERROR]:
-                self.run_worker(code_cell.run_cell)
+            assert isinstance(self.parent_cell, CodeCell);
+            if self.parent_cell.status in [ExecStatus.IDLE, ExecStatus.ERROR]:
+                self.run_worker(self.parent_cell.run_cell)
         elif event.character in self.closing_map:
             self.insert(f"{event.character}{self.closing_map[event.character]}")
             self.move_cursor_relative(columns=-1)
@@ -165,7 +163,7 @@ class OutputJson(HorizontalGroup):
             yield Pretty(self.data, id="pretty-json")
             yield self.output_text
 
-    def _on_focus(self) -> None:
+    def _on_focus(self, event) -> None:
         """Switch to plain-json when focusing on widget."""
         self.switcher.current = "plain-json"
 
@@ -173,7 +171,7 @@ class OutputJson(HorizontalGroup):
         """Switch to pretty-json when bluring away from descendants."""
         self.switcher.current = "pretty-json"
 
-    def _on_blur(self) -> None:
+    def _on_blur(self, event) -> None:
         """Swtich to the pretty-json when bluring away from widget unless new focused widget is
         the plain-json.
         """
@@ -184,13 +182,13 @@ class OutputJson(HorizontalGroup):
 class OutputText(CopyTextArea):
     """Widget for displaying stream/plain error outputs"""
 
-    read_only = True  # make text area read only
+    read_only = reactive(True)  # make text area read only
 
-    def _on_focus(self) -> None:
+    def _on_focus(self, event) -> None:
         """Add border when focused."""
         self.styles.border = "solid", "gray"
 
-    def _on_blur(self) -> None:
+    def _on_blur(self, event) -> None:
         """Remove border when focused."""
         self.styles.border = None
 
@@ -301,7 +299,7 @@ class OutputAnsi(VerticalScroll):
             yield self.static_output
             yield self.text_output
 
-    def _on_focus(self) -> None:
+    def _on_focus(self, event) -> None:
         """Switch to plain-output when focusing on widget."""
         self.switcher.current = "plain-output"
 
@@ -309,7 +307,7 @@ class OutputAnsi(VerticalScroll):
         """Switch to pretty-output when bluring away from descendants."""
         self.switcher.current = "pretty-output"
 
-    def _on_blur(self) -> None:
+    def _on_blur(self, event) -> None:
         """Swtich to the pretty-output when bluring away from widget unless new focused
         widget is the plain-output.
         """
@@ -335,9 +333,8 @@ class CodeCell(Cell):
     BINDINGS = [
         ("ctrl+r", "run_cell", "Run Cell"),
     ]
-    exec_count: int | None = var(
-        None, init=False
-    )  # Reactive to keep track of the execution count
+    exec_count: var[int | None] = var(None, init=False)
+    # Reactive to keep track of the execution count
     cell_type = "code"
 
     def __init__(
@@ -355,10 +352,11 @@ class CodeCell(Cell):
         self.exec_count = exec_count
         self.switcher = ContentSwitcher(id="collapse-content", initial="text")
 
-        self.run_label = RunLabel(id="run-button")
+        self.run_label = RunLabel(self, id="run-button")
         self.exec_count_display = Static(f"[{self.exec_count or ' '}]", id="exec-count")
 
         self.input_text = CodeArea.code_editor(
+            self,
             self.source,
             language=self._language.lower(),
             id="text",
@@ -367,6 +365,7 @@ class CodeCell(Cell):
         )
 
         self.output_collapse_btn = OutputCollapseLabel(
+            self,
             id="output-collapse-button"
         ).with_tooltip("Collapse Output")
 
@@ -440,7 +439,7 @@ class CodeCell(Cell):
             self.collapse_btn.collapsed = not self.collapse_btn.collapsed
             self.output_collapse_btn.collapsed = not self.output_collapse_btn.collapsed
 
-    async def open(self):
+    async def open(self) -> None:
         """Defines what it means to open a code cell. Focus on the input_text widget."""
         self.call_after_refresh(self.input_text.focus)
 

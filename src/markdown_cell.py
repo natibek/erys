@@ -41,7 +41,7 @@ class MarkdownCell(Cell):
             "Collapsed Markdown...", id="collapsed-display"
         )
         self.input_text = SplitTextArea.code_editor(
-            self.source, id="text", language="markdown", show_line_numbers=False
+            self, self.source, id="text", language="markdown", show_line_numbers=False
         )
         self.markdown = Markdown(self.source, id="markdown")
 
@@ -165,7 +165,7 @@ class MarkdownCell(Cell):
             clone.prev = self.prev
         return clone
 
-    async def open(self):
+    async def open(self) -> None:
         """Defines what it means to open a markdown cell. Focus on the input_text widget."""
         self.switcher.current = "text"
         self.call_after_refresh(self.input_text.focus)

@@ -37,19 +37,22 @@ extension_to_language: dict[str, str] = {
 
 
 class FileEditor(CopyTextArea):
+    def __init__(self, parent: "File", *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.parent_file = parent
+
     def on_key(self, event: Key) -> None:
         """Handle key press event for saving and saving as.
 
         Args:
             event: the Key event.
         """
-        file: File = self.parent
         match event.key:
             case "ctrl+s":
-                file.save_file(file.path)
+                self.parent_file.save_file(self.parent_file.path)
                 event.stop()
             case "ctrl+w":
-                file.save_as_file()
+                self.parent_file.save_as_file()
                 event.stop()
 
 
@@ -87,7 +90,7 @@ class File(Container):
 
         self.call_next(self.focus_file)
 
-    def save_as_file(self) -> str:
+    def save_as_file(self) -> None:
         """Save notebook as a new file."""
 
         def check_save_as(path: Path | None) -> None:
@@ -110,7 +113,7 @@ class File(Container):
         # push the save as screen with the above callback function
         self.app.push_screen("file_save_as_screen", check_save_as)
 
-    def save_file(self, path: str) -> None:
+    def save_file(self, path: str | Path) -> None:
         """Saves the file to the provided path.
 
         Args:

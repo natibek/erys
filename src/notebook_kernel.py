@@ -13,7 +13,9 @@
 # limitations under the License.
 
 from typing import Any
-from jupyter_client import KernelManager, BlockingKernelClient, kernelspec
+from jupyter_client import kernelspec
+from jupyter_client.manager import KernelManager
+from jupyter_client.blocking.client import BlockingKernelClient
 import uuid
 import subprocess
 import json
@@ -34,8 +36,8 @@ class NotebookKernel:
         self.ksm = kernelspec.KernelSpecManager()
         self.venv_path = os.getenv("VIRTUAL_ENV") or os.getenv("CONDA_PREFIX")
         self.in_venv = self.venv_path is not None
-        self.kernel_client: BlockingKernelClient = None
-        self.kernel_manager: KernelManager = None
+        self.kernel_client: BlockingKernelClient | None = None
+        self.kernel_manager: KernelManager | None = None
 
         if self.venv_path:
             if self._check_for_ipykernel():
@@ -53,6 +55,8 @@ class NotebookKernel:
     def display_name(self) -> str:
         """Return the kernel name."""
         try:
+            assert self.kernel_manager
+            assert self.kernel_manager.kernel_spec
             return self.kernel_manager.kernel_spec.display_name
         except:
             return ""
@@ -92,12 +96,12 @@ class NotebookKernel:
             kernel_name: name of the kernel
         """
         self.shutdown_kernel()  # will shutdown existing client channels and kernel manager
-        self.kernel_manager: KernelManager = KernelManager(
-            kernel_name=kernel_name
-        )  # kernel manager
+        self.kernel_manager = KernelManager(kernel_name=kernel_name)
 
         # need to manually provide kernel command so that it is not over ridden by
         # implementation
+        assert self.kernel_manager
+        assert self.kernel_manager.kernel_spec
         self.kernel_manager.kernel_cmd = kernel_spec["argv"]
         self.kernel_manager.kernel_spec.argv = kernel_spec["argv"]
         self.kernel_manager.kernel_spec.language = kernel_spec["language"]
@@ -108,9 +112,7 @@ class NotebookKernel:
 
         self.kernel_manager.start_kernel()
 
-        self.kernel_client: BlockingKernelClient = (
-            self.kernel_manager.client()
-        )  # kernel client
+        self.kernel_client = self.kernel_manager.client() # kernel client
         self.kernel_client.start_channels()
 
     def _create_new_kernel_spec(self) -> tuple[dict[str, Any], str]:
@@ -251,6 +253,7 @@ class NotebookKernel:
 
         Returns: the dictionary representing the kernel info.
         """
+        assert self.kernel_manager
         return {"name": self.kernel_manager.kernel_name}
 
     def get_kernel_spec(self) -> dict[str, str]:
@@ -258,6 +261,7 @@ class NotebookKernel:
 
         Returns: the dictionary representing the kernel spec.
         """
+        assert self.kernel_manager
         spec = self.kernel_manager.kernel_spec
         if spec:
             return {
@@ -279,6 +283,7 @@ class NotebookKernel:
         """
         language_info = {}
         try:
+            assert self.kernel_client
             self.kernel_client.kernel_info()
             msg = self.kernel_client.get_shell_msg(timeout=5)
 
@@ -298,6 +303,7 @@ class NotebookKernel:
         if not self.initialized:
             return [], 0
 
+        assert self.kernel_client
         self.kernel_client.execute(code)
 
         # Read the output from the iopub channel
@@ -327,6 +333,7 @@ class NotebookKernel:
         """Interrupt the kernel."""
         if not self.initialized:
             return None
+        assert self.kernel_manager
         self.kernel_manager.interrupt_kernel()
 
     def restart_kernel(self) -> None:
@@ -334,9 +341,11 @@ class NotebookKernel:
         if not self.initialized:
             return None
 
+        assert self.kernel_client
+        assert self.kernel_manager
         self.kernel_client.stop_channels()
         self.kernel_manager.restart_kernel()
-        self.kernel_client: BlockingKernelClient = self.kernel_manager.client()
+        self.kernel_client = self.kernel_manager.client()
         self.kernel_client.start_channels()
 
     def shutdown_kernel(self) -> None:
