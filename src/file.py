@@ -55,6 +55,10 @@ class FileEditor(CopyTextArea):
                 self.parent_file.save_as_file()
                 event.stop()
 
+    @classmethod
+    def code_editor(cls, parent: "File", *args, **kwargs) -> "FileEditor":
+        return cls(parent, *args, **kwargs)
+
 
 class File(Container):
     """Widget for rendering and editing contents of non-notebook files."""
@@ -67,6 +71,7 @@ class File(Container):
         self.source = ""
 
         self.input_text = FileEditor.code_editor(
+            self,
             self.source,
             language=self.language,
             id="file-text",
