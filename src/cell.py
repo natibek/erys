@@ -100,6 +100,7 @@ class CollapseLabel(Label):
             if line != "":
                 return line
 
+        return ""
 
 class CopyTextArea(TextArea):
     """Widget to contain text that can be copied."""
@@ -127,6 +128,7 @@ class SplitTextArea(CopyTextArea):
             case "ctrl+c":
                 pyperclip.copy(self.selected_text)
             case "escape":
+                assert self.parent, self.parent.parent, self.parent.parent.parent
                 cell: Cell = self.parent.parent.parent
                 cell.escape(event)
 
@@ -152,7 +154,7 @@ class Cell(VerticalGroup):
 
     can_focus = True
     _last_click_time: float = 0.0  # keep track of the last mouse click
-    merge_select: bool = var(False, init=False)  # whether cell is selected for merging
+    merge_select: var[bool] = var(False, init=False)  # whether cell is selected for merging
 
     # pointers to the next and prevous cells in the notebook
     next = None
