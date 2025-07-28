@@ -142,7 +142,6 @@ class SplitTextArea(CopyTextArea):
             case "ctrl+c":
                 pyperclip.copy(self.selected_text)
             case "escape":
-                assert self.parent, self.parent.parent, self.parent.parent.parent
                 cell: Cell = self.parent.parent.parent
                 cell.escape(event)
 

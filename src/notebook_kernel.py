@@ -32,7 +32,7 @@ class NotebookKernel:
 
     def __init__(self) -> None:
         self.ksm = kernelspec.KernelSpecManager()
-        self.venv_path = os.getenv("VIRTUAL_ENV")
+        self.venv_path = os.getenv("VIRTUAL_ENV") or os.getenv("CONDA_PREFIX")
         self.in_venv = self.venv_path is not None
         self.kernel_client: BlockingKernelClient = None
         self.kernel_manager: KernelManager = None
