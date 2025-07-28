@@ -25,6 +25,8 @@ import json
 from pathlib import Path
 import time
 
+from typing import Type
+
 from .markdown_cell import MarkdownCell
 from .code_cell import (
     CodeCell,
@@ -195,11 +197,16 @@ class Notebook(Container):
             isinstance(event.widget, widgetType)
             for widgetType in [OutputJson, OutputText, OutputAnsi]
         ) or event.widget.id in ["pretty-error-output", "plain-error-output"]:
+            assert event.widget.parent
+            assert event.widget.parent.parent
+            assert event.widget.parent.parent.parent
             self.last_focused = event.widget.parent.parent.parent.parent
         elif any(
             isinstance(event.widget, widgetType)
             for widgetType in [Markdown, CopyTextArea, CodeArea]
         ):
+            assert event.widget.parent
+            assert event.widget.parent.parent
             self.last_focused = event.widget.parent.parent.parent
         elif self.last_focused:
             self.last_focused.focus()
@@ -644,7 +651,7 @@ class Notebook(Container):
 
     async def add_cell(
         self,
-        cell_type: Cell,
+        cell_type: Type[Cell],
         relative_to: Cell | None,
         position: str = "after",
         **cell_kwargs,
