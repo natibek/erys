@@ -200,14 +200,18 @@ class Notebook(Container):
             assert event.widget.parent
             assert event.widget.parent.parent
             assert event.widget.parent.parent.parent
-            self.last_focused = event.widget.parent.parent.parent.parent
+            node = event.widget.parent.parent.parent.parent
+            assert isinstance(node, Cell)
+            self.last_focused = node
         elif any(
             isinstance(event.widget, widgetType)
             for widgetType in [Markdown, CopyTextArea, CodeArea]
         ):
             assert event.widget.parent
             assert event.widget.parent.parent
-            self.last_focused = event.widget.parent.parent.parent
+            node = event.widget.parent.parent.parent
+            assert isinstance(node, Cell)
+            self.last_focused = node
         elif self.last_focused:
             self.last_focused.focus()
 
@@ -738,7 +742,7 @@ class Notebook(Container):
         kernel_info = self.notebook_kernel.get_kernel_info()
         language_info = self.notebook_kernel.get_language_info()
 
-        cells = [cell.to_nb() for cell in self.cell_container.children]
+        cells = [cell.to_nb() for cell in self.cell_container.children if isinstance(cell, Cell)]
 
         return {
             "metadata": {
