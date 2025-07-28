@@ -33,7 +33,7 @@ from argparse import ArgumentParser
 
 from . import __version__
 from .notebook import Notebook, DEFAULT_FILE_NAME
-from .save_as_screen import SaveAsScreen
+from .save_as_screen import NotebookSaveAsScreen, FileSaveAsScreen
 from .file import File
 
 
@@ -106,11 +106,11 @@ class Erys(App):
     """A Textual app for editing and running Python notebooks."""
 
     CSS_PATH = "./styles.tcss"
-    # SCREENS = {
-    #     "quit_screen": QuitScreen,
-    #     "nb_save_as_screen": SaveAsScreen,
-    #     "file_save_as_screen": SaveAsScreen,
-    # }
+    SCREENS = {
+        "quit_screen": QuitScreen,
+        "nb_save_as_screen": NotebookSaveAsScreen,
+        "file_save_as_screen": FileSaveAsScreen,
+    }
     BINDINGS = [
         ("ctrl+n", "new_notebook", "New Notebook"),
         ("ctrl+k", "close", "Close Tab"),
@@ -171,12 +171,6 @@ class Erys(App):
         """Mount event handler that creates a new notebook if none are opened when app starts,
         then focuses on the tabs.
         """
-        self.install_screen(QuitScreen, "quit_screen")
-        self.install_screen(lambda: SaveAsScreen(is_notebook=True), "nb_save_as_screen")
-        self.install_screen(
-            lambda: SaveAsScreen(is_notebook=False), "file_save_as_screen"
-        )
-
         if len(self.paths) == 0:
             self.dir_tree.display = True
             self.dir_tree.focus()
