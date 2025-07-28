@@ -174,3 +174,11 @@ class SaveAsScreen(Screen[Path | None]):
         else:
             file_path = Path(self.dir_tree.path).joinpath(event.value)
             self.dismiss(file_path)
+
+class NotebookSaveAsScreen(SaveAsScreen):
+    def __init__(self):
+        super().__init__(is_notebook=True)
+
+class FileSaveAsScreen(SaveAsScreen):
+    def __init__(self):
+        super().__init__(is_notebook=False)
