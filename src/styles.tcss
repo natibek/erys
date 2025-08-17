@@ -1,7 +1,7 @@
 Tabs {
     dock: top;
 }
- 
+
 DirectoryNav {
     dock: left;
     min-width: 35;
@@ -37,7 +37,7 @@ Markdown, #text {
 
 Markdown {
     padding: 1;
-    margin-left: 1;    
+    margin-left: 1;
 }
 
 CopyTextArea {

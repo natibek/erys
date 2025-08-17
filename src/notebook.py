@@ -570,9 +570,12 @@ class Notebook(Container):
                 continue
 
             code_cell.status = ExecStatus.RUNNING
-            outputs, execution_count = self.notebook_kernel.run_code(src)
+            code_cell.outputs_group.remove_children()
+            # generator that yields each output from execution
+            outputs = self.notebook_kernel.run_code(src)
+            for output in outputs:
+                self.call_after_refresh(code_cell.handle_output, output)
             code_cell.status = ExecStatus.IDLE
-            code_cell.handle_exec_completion(outputs, execution_count)
 
         return
 

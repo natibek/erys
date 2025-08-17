@@ -355,7 +355,7 @@ class CodeCell(Cell):
         self.run_label = RunLabel(self, id="run-button")
         self.exec_count_display = Static(f"[{self.exec_count or ' '}]", id="exec-count")
 
-        self.input_text = CodeArea.code_editor(
+        self.input_text = CodeArea._code_editor(
             self,
             self.source,
             language=self._language.lower(),
@@ -410,7 +410,8 @@ class CodeCell(Cell):
         """On mount, toggle the display for the output collapse button if there are outputs and
         display the outputs.
         """
-        self.output_collapse_btn.display = len(self.outputs) > 0
+        # self.output_collapse_btn.display = len(self.outputs) > 0
+        self.outputs_group.mount(OutputText("What"))
         self.call_after_refresh(self.update_outputs, self.outputs)
 
     def escape(self, event: Key):
@@ -533,6 +534,69 @@ class CodeCell(Cell):
 
         return clone
 
+    def handle_output(self, output: dict[str, Any]) -> None:
+        match output["msg_type"]:
+            case "execute_input":
+                # {
+                #   'msg_type' : "stream",
+                #   'code' : str,  # Source code to be executed, one or more lines
+                #   'execution_count' : int
+                # }
+                self.exec_count = output["execution_count"]
+            case "stream":
+                # join the strings and display them in the `OutputText` widget
+                # {
+                #   "msg_type" : "stream",
+                #   "name" : "stdout", # or stderr
+                #   "text" : ["multiline stream text"],
+                # }
+                self.outputs_group.mount(OutputAnsi(output["text"]))
+            case "error":
+                # display the errors with the `OutputError` widget
+                # {
+                #   "msg_type" : "error",
+                #   'ename' : str,   # Exception name, as a string
+                #   'evalue' : str,  # Exception value, as a string
+                #   'traceback' : list,
+                # }
+                self.outputs_group.mount(OutputAnsi(output["traceback"]))
+                self.status = ExecStatus.ERROR
+            case "execute_result" | "display_data":
+                # the display_data and output_result have different formats
+                # {
+                #   "msg_type" : "execute_result" | "display_data",
+                #   "execution_count": 42, # if "execute_result"
+                #   "data" : {
+                #     "text/plain" : ["multiline text data"],
+                #     "image/png": ["base64-encoded-png-data"],
+                #     "application/json": {
+                #       # JSON data is included as-is
+                #       "json": "data",
+                #     },
+                #   },
+                #   "metadata" : {
+                #     "image/png": {
+                #       "width": 640,
+                #       "height": 480,
+                #     },
+                #   },
+                # }
+                for type, data in output["data"].items():
+                    match type:
+                        case "text/plain":
+                            # plain text can also use the `OutputAnsi` widget for display
+                            self.outputs_group.mount(OutputAnsi(data))
+                        case "application/json":
+                            # json is displayed with the `OutputJson` widget
+                            self.outputs_group.mount(OutputJson(data))
+                        case "image/png":
+                            # display the images with the `OutputImage` widget
+                            metadata = output["metadata"]
+                            self.outputs_group.mount(OutputImage(data, metadata))
+                        case "text/html":
+                            # display the html douput with the `OutputHTHML` widget
+                            self.outputs_group.mount(OutputHTML(data))
+
     async def update_outputs(self, outputs: list[dict[str, Any]]) -> None:
         """Generate the widgets to store the different output types that result from running
         code cell.
@@ -550,60 +614,7 @@ class CodeCell(Cell):
         await self.outputs_group.remove_children()
 
         for output in outputs:
-            match output["output_type"]:
-                case "stream":
-                    # join the strings and display them in the `OutputText` widget
-                    # {
-                    #   "output_type" : "stream",
-                    #   "name" : "stdout", # or stderr
-                    #   "text" : ["multiline stream text"],
-                    # }
-                    self.outputs_group.mount(OutputAnsi(output["text"]))
-                case "error":
-                    # display the errors with the `OutputError` widget
-                    # {
-                    #   "output_type" : "error",
-                    #   'ename' : str,   # Exception name, as a string
-                    #   'evalue' : str,  # Exception value, as a string
-                    #   'traceback' : list,
-                    # }
-                    self.outputs_group.mount(OutputAnsi(output["traceback"]))
-                    self.status = ExecStatus.ERROR
-                case "execute_result" | "display_data":
-                    # the display_data and output_result have different formats
-                    # {
-                    #   "output_type" : "execute_result" | "display_data",
-                    #   "execution_count": 42, # if "execute_result"
-                    #   "data" : {
-                    #     "text/plain" : ["multiline text data"],
-                    #     "image/png": ["base64-encoded-png-data"],
-                    #     "application/json": {
-                    #       # JSON data is included as-is
-                    #       "json": "data",
-                    #     },
-                    #   },
-                    #   "metadata" : {
-                    #     "image/png": {
-                    #       "width": 640,
-                    #       "height": 480,
-                    #     },
-                    #   },
-                    # }
-                    for type, data in output["data"].items():
-                        match type:
-                            case "text/plain":
-                                # plain text can also use the `OutputAnsi` widget for display
-                                self.outputs_group.mount(OutputAnsi(data))
-                            case "application/json":
-                                # json is displayed with the `OutputJson` widget
-                                self.outputs_group.mount(OutputJson(data))
-                            case "image/png":
-                                # display the images with the `OutputImage` widget
-                                metadata = output["metadata"]
-                                self.outputs_group.mount(OutputImage(data, metadata))
-                            case "text/html":
-                                # display the html douput with the `OutputHTHML` widget
-                                self.outputs_group.mount(OutputHTML(data))
+            self.handle_output(output)
 
         self.refresh()
 
@@ -627,15 +638,6 @@ class CodeCell(Cell):
         # outputs, count= await to_thread(self.notebook.notebook_kernel.run_code, self.input_text.text)
         self.notebook._exec_queue.enqueue(self)
         self.status = ExecStatus.IDLE
-        # self.handle_exec_completion(outputs, count)
-
-    #
-    def handle_exec_completion(
-        self, outputs: list[dict[str, Any]], execution_count: int
-    ) -> None:
-        self.exec_count = execution_count
-        self.outputs = outputs
-        self.call_next(self.update_outputs, outputs)  # update the output cells
 
     def interrupt_cell(self) -> None:
         """Interrupt kernel when running cell."""

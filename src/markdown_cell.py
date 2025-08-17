@@ -40,7 +40,7 @@ class MarkdownCell(Cell):
         self.collapsed_markdown = Static(
             "Collapsed Markdown...", id="collapsed-display"
         )
-        self.input_text = SplitTextArea.code_editor(
+        self.input_text = SplitTextArea._code_editor(
             self, self.source, id="text", language="markdown", show_line_numbers=False
         )
         self.markdown = Markdown(self.source, id="markdown")

@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from rich.console import RenderableType
 from textual.app import ComposeResult
 from textual.containers import Container
 from textual.events import Key
 from pathlib import Path
 from .cell import CopyTextArea
+from typing_extensions import Literal
 
 
 extension_to_language: dict[str, str] = {
@@ -41,6 +43,7 @@ class FileEditor(CopyTextArea):
         super().__init__(*args, **kwargs)
         self.parent_file = parent
 
+
     def on_key(self, event: Key) -> None:
         """Handle key press event for saving and saving as.
 
@@ -56,9 +59,49 @@ class FileEditor(CopyTextArea):
                 event.stop()
 
     @classmethod
-    def code_editor(cls, parent: "File", *args, **kwargs) -> "FileEditor":
-        return cls(parent, *args, **kwargs)
+    def _code_editor(
+        cls,
+        parent: "File",
+        text: str = "",
+        *,
+        language: str | None = None,
+        theme: str = "monokai",
+        soft_wrap: bool = False,
+        tab_behavior: Literal["focus", "indent"] = "indent",
+        read_only: bool = False,
+        show_cursor: bool = True,
+        show_line_numbers: bool = True,
+        line_number_start: int = 1,
+        max_checkpoints: int = 50,
+        name: str | None = None,
+        id: str | None = None,
+        classes: str | None = None,
+        disabled: bool = False,
+        tooltip: RenderableType | None = None,
+        compact: bool = False,
+        highlight_cursor_line: bool = True,
+        ) -> "FileEditor":
 
+        return cls(
+            parent,
+            text,
+            language=language,
+            theme=theme,
+            soft_wrap=soft_wrap,
+            tab_behavior=tab_behavior,
+            read_only=read_only,
+            show_cursor=show_cursor,
+            show_line_numbers=show_line_numbers,
+            line_number_start=line_number_start,
+            max_checkpoints=max_checkpoints,
+            name=name,
+            id=id,
+            classes=classes,
+            disabled=disabled,
+            tooltip=tooltip,
+            compact=compact,
+            highlight_cursor_line=highlight_cursor_line,
+         )
 
 class File(Container):
     """Widget for rendering and editing contents of non-notebook files."""
@@ -70,7 +113,7 @@ class File(Container):
         self.language = extension_to_language.get(self.path.suffix, None)
         self.source = ""
 
-        self.input_text = FileEditor.code_editor(
+        self.input_text = FileEditor._code_editor(
             self,
             self.source,
             language=self.language,

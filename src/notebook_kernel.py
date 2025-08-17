@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any
+from typing import Any, Generator
 from jupyter_client import kernelspec
 from jupyter_client.manager import KernelManager
 from jupyter_client.blocking.client import BlockingKernelClient
@@ -292,7 +292,7 @@ class NotebookKernel:
         finally:
             return language_info
 
-    def run_code(self, code: str) -> tuple[list[dict[str, Any]], int]:
+    def run_code(self, code: str) -> Generator[Any, Any, Any]:
         """Run provided code string with the kernel. Uses the iopub channel to get results.
 
         Args:
@@ -301,14 +301,12 @@ class NotebookKernel:
         Returns: the outputs of executing the code with the kernel.
         """
         if not self.initialized:
-            return [], 0
+            return
 
         assert self.kernel_client
         self.kernel_client.execute(code)
 
         # Read the output from the iopub channel
-        outputs = []
-        execution_count = 0
         while True:
             try:
                 msg = self.kernel_client.get_iopub_msg()
@@ -317,17 +315,14 @@ class NotebookKernel:
                     case "status":
                         if msg["content"]["execution_state"] == "idle":
                             break
-                    case "execute_input":
-                        # if no execute output is present for execution, execution count can
-                        # be found from the execute_input output
-                        execution_count = msg["content"]["execution_count"]
-                    case "display_data" | "stream" | "error" | "execute_result":
+                    case "display_data" | "stream" | "error" | "execute_result" | "execute_input":
+                        # execute input contains the execution count
                         output = msg["content"]
-                        output["output_type"] = msg_type
-                        outputs.append(output)
+                        output["msg_type"] = msg_type
+                        yield output
             except Exception:
                 pass
-        return outputs, execution_count
+
 
     def interrupt_kernel(self) -> None:
         """Interrupt the kernel."""

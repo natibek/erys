@@ -17,6 +17,8 @@ from textual.events import MouseDown, Key, Enter, Leave
 from textual.reactive import var
 from textual.containers import VerticalGroup
 from textual.binding import Binding
+from typing_extensions import Literal
+from rich.console import RenderableType
 
 from time import time
 import pyperclip
@@ -162,8 +164,49 @@ class SplitTextArea(CopyTextArea):
         self.parent_cell.notebook.connect_widget(new_cell)
 
     @classmethod
-    def code_editor(cls, parent: "Cell", *args, **kwargs) -> "SplitTextArea":
-        return cls(parent, *args, **kwargs)
+    def _code_editor(
+        cls,
+        parent: "Cell",
+        text: str = "",
+        *,
+        language: str | None = None,
+        theme: str = "monokai",
+        soft_wrap: bool = False,
+        tab_behavior: Literal["focus", "indent"] = "indent",
+        read_only: bool = False,
+        show_cursor: bool = True,
+        show_line_numbers: bool = True,
+        line_number_start: int = 1,
+        max_checkpoints: int = 50,
+        name: str | None = None,
+        id: str | None = None,
+        classes: str | None = None,
+        disabled: bool = False,
+        tooltip: RenderableType | None = None,
+        compact: bool = False,
+        highlight_cursor_line: bool = True,
+        ) -> "SplitTextArea":
+
+        return cls(
+            parent,
+            text,
+            language=language,
+            theme=theme,
+            soft_wrap=soft_wrap,
+            tab_behavior=tab_behavior,
+            read_only=read_only,
+            show_cursor=show_cursor,
+            show_line_numbers=show_line_numbers,
+            line_number_start=line_number_start,
+            max_checkpoints=max_checkpoints,
+            name=name,
+            id=id,
+            classes=classes,
+            disabled=disabled,
+            tooltip=tooltip,
+            compact=compact,
+            highlight_cursor_line=highlight_cursor_line,
+        )
 
 class Cell(VerticalGroup):
     """Base class for the markdown and code cell."""
