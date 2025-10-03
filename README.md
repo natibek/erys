@@ -1,5 +1,9 @@
 # ***`Erys`***: Terminal Interface for Jupyter Notebooks.
 
+ <!--PYPI_TOTAL_START-->
+ 📦 Total PyPI downloads: []
+ <!--PYPI_TOTAL_END-->
+
 ![Demo](https://raw.githubusercontent.com/natibek/erys/main/data/demo.gif)
 
 **`Erys`** is a tool for opening, creating, editing, running, interacting with, and
