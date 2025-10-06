@@ -314,7 +314,7 @@ class NotebookKernel:
                 match msg_type:
                     case "status":
                         if msg["content"]["execution_state"] == "idle":
-                            break
+                            return 
                     case "display_data" | "stream" | "error" | "execute_result" | "execute_input":
                         # execute input contains the execution count
                         output = msg["content"]

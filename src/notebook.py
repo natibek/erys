@@ -570,14 +570,17 @@ class Notebook(Container):
                 continue
 
             code_cell.status = ExecStatus.RUNNING
-            code_cell.outputs_group.remove_children()
             # generator that yields each output from execution
             outputs = self.notebook_kernel.run_code(src)
+            code_outputs = []
+            code_cell.outputs_group.remove_children()
             for output in outputs:
+                code_outputs.append(output)
                 self.call_after_refresh(code_cell.handle_output, output)
-            code_cell.status = ExecStatus.IDLE
 
-        return
+            code_cell.outputs = code_outputs
+            code_cell.output_collapse_btn.display = len(code_outputs) > 1
+            code_cell.status = ExecStatus.IDLE
 
     async def toggle_cell_type(self) -> None:
         """Swtich the cell type keeping the input text source."""

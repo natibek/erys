@@ -167,5 +167,8 @@ class MarkdownCell(Cell):
 
     async def open(self) -> None:
         """Defines what it means to open a markdown cell. Focus on the input_text widget."""
+        if self.collapse_btn.collapsed:
+            self.collapse_btn.collapsed = False
+
         self.switcher.current = "text"
         self.call_after_refresh(self.input_text.focus)

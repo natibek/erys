@@ -60,10 +60,12 @@ class OutputCollapseLabel(Label):
         Args:
             collapsed: updated collapsed state.
         """
-        if collapsed and len(self.parent_cell.outputs) > 0:
+        if collapsed:
+            self.parent_cell.output_box.styles.offset = 0, -1
             self.parent_cell.output_switcher.current = "collapsed-output"
             self.styles.color = COLLAPSED_COLOR
         else:
+            self.parent_cell.output_box.styles.offset = 0, 0
             self.parent_cell.output_switcher.current = "outputs"
             self.styles.color = EXPANDED_COLOR
 
@@ -410,8 +412,6 @@ class CodeCell(Cell):
         """On mount, toggle the display for the output collapse button if there are outputs and
         display the outputs.
         """
-        # self.output_collapse_btn.display = len(self.outputs) > 0
-        self.outputs_group.mount(OutputText("What"))
         self.call_after_refresh(self.update_outputs, self.outputs)
 
     def escape(self, event: Key):
@@ -442,6 +442,8 @@ class CodeCell(Cell):
 
     async def open(self) -> None:
         """Defines what it means to open a code cell. Focus on the input_text widget."""
+        if self.collapse_btn.collapsed:
+            self.collapse_btn.collapsed = False
         self.call_after_refresh(self.input_text.focus)
 
     @staticmethod
@@ -604,15 +606,10 @@ class CodeCell(Cell):
         Args:
             outputs: list of serialized outputs.
         """
-        try:
-            self.outputs_group = self.query_one("#outputs", VerticalGroup)
-        except:
-            return
-
-        self.output_collapse_btn.display = len(outputs) > 0
         # remove the children widgets first
         await self.outputs_group.remove_children()
 
+        self.output_collapse_btn.display = len(outputs) > 0
         for output in outputs:
             self.handle_output(output)
 
@@ -635,7 +632,6 @@ class CodeCell(Cell):
             return
 
         self.status = ExecStatus.QUEUED
-        # outputs, count= await to_thread(self.notebook.notebook_kernel.run_code, self.input_text.text)
         self.notebook._exec_queue.enqueue(self)
         self.status = ExecStatus.IDLE
 
