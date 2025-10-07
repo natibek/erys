@@ -18,11 +18,13 @@ keywords = [
     "tui",
 ]
 dependencies = [
-    "textual[syntax]==3.7.1",
-    "tree-sitter==0.24.0",
-    "pyperclip==1.9.0",
-    "jupyter_client==8.6.3",
-    "pillow==11.3.0",
+  "textual[syntax]==6.2.1",
+  "tree-sitter==0.25.2",
+  "tree-sitter-python==0.25.0",
+  "ipykernel==6.30.1",
+  "pyperclip==1.9.0",
+  "jupyter_client==8.6.3",
+  "pillow==11.3.0",
 ]
 readme = "README.md"
 dynamic = ["version"]
