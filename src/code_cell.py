@@ -546,7 +546,7 @@ class CodeCell(Cell):
                 # }
                 self.exec_count = output["execution_count"]
             case "stream":
-                # join the strings and display them in the `OutputText` widget
+                # join the strings and display them in the `OutputAnsi` widget
                 # {
                 #   "msg_type" : "stream",
                 #   "name" : "stdout", # or stderr
@@ -554,7 +554,7 @@ class CodeCell(Cell):
                 # }
                 self.outputs_group.mount(OutputAnsi(output["text"]))
             case "error":
-                # display the errors with the `OutputError` widget
+                # display the errors with the `OutputAnsi` widget
                 # {
                 #   "msg_type" : "error",
                 #   'ename' : str,   # Exception name, as a string

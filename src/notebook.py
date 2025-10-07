@@ -15,7 +15,7 @@
 from textual.app import ComposeResult
 from textual.widgets import TextArea, Markdown, Static
 from textual.reactive import var
-from textual.containers import VerticalScroll, Container, HorizontalScroll
+from textual.containers import VerticalGroup, VerticalScroll, Container, HorizontalScroll
 from textual.events import Key, DescendantFocus, Click
 from textual.binding import Binding
 
@@ -193,9 +193,18 @@ class Notebook(Container):
         # Ignore buttons
         if isinstance(event.widget, CodeCell) or isinstance(event.widget, MarkdownCell):
             self.last_focused = event.widget
+        elif isinstance(event.widget, OutputText):
+            assert event.widget.parent
+            assert event.widget.parent.parent
+            assert event.widget.parent.parent.parent
+            assert event.widget.parent.parent.parent.parent
+            assert event.widget.parent.parent.parent.parent.parent
+            node = event.widget.parent.parent.parent.parent.parent.parent
+            assert isinstance(node, Cell)
+            self.last_focused = node
         elif any(
             isinstance(event.widget, widgetType)
-            for widgetType in [OutputJson, OutputText, OutputAnsi]
+            for widgetType in [OutputJson, OutputAnsi]
         ) or event.widget.id in ["pretty-error-output", "plain-error-output"]:
             assert event.widget.parent
             assert event.widget.parent.parent
