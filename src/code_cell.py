@@ -373,6 +373,7 @@ class CodeCell(Cell):
 
         self.outputs_group = VerticalGroup(id="outputs")
         self.output_switcher = ContentSwitcher(id="collapse-outputs", initial="outputs")
+        self.output_box = HorizontalGroup(id="output-section")
 
     def compose(self) -> ComposeResult:
         """Compose with:
@@ -402,7 +403,7 @@ class CodeCell(Cell):
                 yield self.input_text
                 yield self.collapsed_display
 
-        with HorizontalGroup(id="output-section"):
+        with self.output_box:
             yield self.output_collapse_btn
             with self.output_switcher:
                 yield self.outputs_group
