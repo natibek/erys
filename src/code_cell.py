@@ -537,7 +537,7 @@ class CodeCell(Cell):
         return clone
 
     def handle_output(self, output: dict[str, Any]) -> None:
-        match output["msg_type"]:
+        match output["output_type"]:
             case "execute_input":
                 # {
                 #   'msg_type' : "stream",

@@ -318,7 +318,7 @@ class NotebookKernel:
                     case "display_data" | "stream" | "error" | "execute_result" | "execute_input":
                         # execute input contains the execution count
                         output = msg["content"]
-                        output["msg_type"] = msg_type
+                        output["output_type"] = msg_type
                         yield output
             except Exception:
                 pass
