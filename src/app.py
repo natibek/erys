@@ -122,19 +122,37 @@ class Erys(App):
     def __init__(self, paths: list[str]) -> None:
         super().__init__()
         self.theme = "textual-dark"
-        # check if the provided file paths are python notebooks
-        self.paths = [
+
+        # is any of the inputs are a directory, use the first such input and open the
+        # directory navigation in that directory. Ignore all other paths.
+        cur_dir = (
             os.path.relpath(path, Path.cwd())
             for path in paths
-            if (Path(path).exists() or Path(path).parent.is_dir())
-        ]
+            if (Path(path).exists() and Path(path).is_dir())
+        )
+
+        cur_dir = next(cur_dir, None)
+
+        if cur_dir:
+            self.paths = []
+            self.dir_tree = DirectoryNav(cur_dir, id="file-tree")
+        else:
+            # check if the provided file paths are python notebooks
+            self.paths = [
+                os.path.relpath(path, Path.cwd())
+                for path in paths
+                if ((Path(path).exists() and Path(path).is_file()) or Path(path).parent.is_dir())
+            ]
+
+            self.dir_tree = DirectoryNav(Path.cwd(), id="file-tree")
+
+        
         self.tabs = Tabs(
             *[Tab(path, id=f"tab{idx}") for idx, path in enumerate(self.paths)]
         )
-        self.cur_tab = len(paths)
+        self.cur_tab = len(self.paths)
         self.path_to_tab_id: dict[str, str] = {}  # maps from tab id to notebook id
 
-        self.dir_tree = DirectoryNav(Path.cwd(), id="file-tree")
         self.switcher = ContentSwitcher(id="tab-content")
 
     def compose(self) -> ComposeResult:

@@ -162,7 +162,10 @@ class Notebook(Container):
 
         if not self._is_new_notebook():
             self.path = Path(self.path)
-            if self.path.exists():
+            if not self.path.exists():
+                pass
+            
+            if self.path.is_file():
                 self.call_after_refresh(self.load_notebook)
 
         if self._is_kernel_connected():
