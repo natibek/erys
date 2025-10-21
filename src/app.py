@@ -26,6 +26,7 @@ from textual.widgets import (
 from textual.screen import Screen
 from textual.containers import Horizontal, Vertical, Grid
 from textual.events import Key
+from textual.binding import Binding
 
 from pathlib import Path
 import os.path
@@ -117,6 +118,7 @@ class Erys(App):
         ("ctrl+l", "clear", "Clear Tabs"),
         ("d", "toggle_directory_tree", "Toggle Directory Tree"),
         ("ctrl+q", "push_screen('quit_screen')", "Quit"),
+        Binding("ctrl+z", "suspend_process", "Suspend", False),
     ]
 
     def __init__(self, paths: list[str]) -> None:
