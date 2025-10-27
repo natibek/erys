@@ -174,7 +174,7 @@ class OutputJson(HorizontalGroup):
         self.switcher.current = "pretty-json"
 
     def _on_blur(self, event) -> None:
-        """Swtich to the pretty-json when bluring away from widget unless new focused widget is
+        """Switch to the pretty-json when bluring away from widget unless new focused widget is
         the plain-json.
         """
         if not self.app.focused or self.app.focused != self.output_text:
@@ -306,11 +306,11 @@ class OutputAnsi(VerticalScroll):
         self.switcher.current = "plain-output"
 
     def on_descendant_blur(self, event: DescendantBlur) -> None:
-        """Switch to pretty-output when bluring away from descendants."""
+        """Switch to pretty-output when blurring away from descendants."""
         self.switcher.current = "pretty-output"
 
     def _on_blur(self, event) -> None:
-        """Swtich to the pretty-output when bluring away from widget unless new focused
+        """Switch to the pretty-output when blurring away from widget unless new focused
         widget is the plain-output.
         """
         if not self.app.focused or self.app.focused != self.text_output:

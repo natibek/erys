@@ -22,7 +22,7 @@ class Queue:
 
     def __init__(self) -> None:
         self.queue = deque()
-        self.condition = Condition()
+        self.condition: Condition = Condition()
 
     def enqueue(self, val: Any) -> None:
         """Enqueue element to the queue.
@@ -60,7 +60,7 @@ class Queue:
             return not self.queue
 
     def push_left(self, val: Any) -> None:
-        """Add element to the begining of the queue.
+        """Add element to the beginning of the queue.
 
         Args:
             val: element to add.

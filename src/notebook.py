@@ -15,7 +15,7 @@
 from textual.app import ComposeResult
 from textual.widgets import TextArea, Markdown, Static
 from textual.reactive import var
-from textual.containers import VerticalGroup, VerticalScroll, Container, HorizontalScroll
+from textual.containers import VerticalScroll, Container, HorizontalScroll
 from textual.events import Key, DescendantFocus, Click
 from textual.binding import Binding
 
@@ -46,7 +46,7 @@ DEFAULT_FILE_NAME = "erys_notebook"
 
 
 class ButtonRow(HorizontalScroll):
-    """Buttton row on top of Notebook"""
+    """Button row on top of Notebook"""
 
     kernel_name: var[str] = var("", init=False)
 
@@ -66,8 +66,6 @@ class ButtonRow(HorizontalScroll):
         yield StaticBtn("▶ Run All", id="run-all")
         yield StaticBtn("▲ Run Before", id="run-before")
         yield StaticBtn("▼ Run After", id="run-after")
-        # yield StaticBtn("▶ ↑ Run Before", id="run-before")
-        # yield StaticBtn("▶ ↓ Run After", id="run-after")
         yield StaticBtn("🔁 Restart", id="restart-shell")
         self.kernel_label = Static(f"Kernel: {self.kernel_name}", id="kernel-name")
         yield self.kernel_label
@@ -164,7 +162,7 @@ class Notebook(Container):
             self.path = Path(self.path)
             if not self.path.exists():
                 pass
-            
+
             if self.path.is_file():
                 self.call_after_refresh(self.load_notebook)
 
@@ -176,7 +174,7 @@ class Notebook(Container):
         self.run_worker(self.notebook_executor, thread=True)
 
     def on_unmount(self) -> None:
-        """Unmount event handler that shuts down kernel if avaialble."""
+        """Unmount event handler that shuts down kernel if available."""
         if self.notebook_kernel.initialized:
             self.notebook_kernel.interrupt_kernel()
             time.sleep(0.5)
@@ -230,7 +228,7 @@ class Notebook(Container):
     def on_key(self, event: Key) -> None:
         """Key event handler that
             - disables tab and shift+tab for changing focus,
-            - clears merge list when escape is presed
+            - clears merge list when escape is pressed
             - moves focus between cells using up and down arrows.
 
         Args:
@@ -301,7 +299,7 @@ class Notebook(Container):
             """
             if path:
                 self.path = path
-                # notify after successfuly serializing and saving notebook
+                # notify after successfully serializing and saving notebook
                 self.save_notebook(path)
                 self.notify(f"{self.path} saved!")
                 # open the saved notebook
@@ -319,7 +317,7 @@ class Notebook(Container):
         if self._is_new_notebook():
             self.action_save_as()
         else:
-            # notify after successfuly serializing and saving notebook
+            # notify after successfully serializing and saving notebook
             self.save_notebook(self.path)
             self.notify(f"{self.path} saved!")
 
@@ -435,8 +433,8 @@ class Notebook(Container):
 
     def action_merge_cells(self) -> None:
         """Merge selected cells by combining content in text areas into the one selected. Should be
-        called by the first selected cell in the the cells to merge. The resulting type will be
-        of the first selected's type.
+        called by the first selected cell in the cells to merge. The resulting type will be
+        of the first selected cell's type.
         """
         if len(self._merge_list) < 2:
             return
@@ -446,7 +444,7 @@ class Notebook(Container):
         self._merge_list = []
 
     async def action_toggle_cell(self) -> None:
-        """Callback for binding to swtich the cell type keeping the input text source."""
+        """Callback for binding to switch the cell type keeping the input text source."""
         await self.toggle_cell_type()
 
     def action_undo(self) -> None:
@@ -572,10 +570,11 @@ class Notebook(Container):
     async def notebook_executor(self) -> None:
         """Threaded consumer function to run code cells using the `_exec_queue`."""
         while self.notebook_kernel.initialized:
-            code_cell: CodeCell = self._exec_queue.dequeue()
+            code_cell: CodeCell | None = self._exec_queue.dequeue()
 
             if code_cell is None:  # sentinel for exiting
                 break
+
             src = code_cell.input_text.text
 
             if src == "":  # only call the kernel execute if there is code
@@ -595,13 +594,13 @@ class Notebook(Container):
             code_cell.status = ExecStatus.IDLE
 
     async def toggle_cell_type(self) -> None:
-        """Swtich the cell type keeping the input text source."""
+        """Switch the cell type keeping the input text source."""
         if not self.last_focused:
             return
 
         # get the source in the input text of the cell
         src = self.last_focused.input_text.text
-        # get the type to swtich to and construct object
+        # get the type to switch to and construct object
         new_cell_type = (
             MarkdownCell if isinstance(self.last_focused, CodeCell) else CodeCell
         )
@@ -699,7 +698,7 @@ class Notebook(Container):
     def connect_widget(
         self, widget: Cell, relative_to: Cell | None = None, position: str = "after"
     ) -> None:
-        """Connect the cell (widget) after or before the the `Cell` `relative_to`.
+        """Connect the cell (widget) after or before the `Cell` `relative_to`.
 
         Args:
             widget: the widget being connected.

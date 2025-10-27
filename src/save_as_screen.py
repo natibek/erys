@@ -27,7 +27,7 @@ class NotebookName(Validator):
     """Validator for notebook name."""
 
     def validate(self, value: str) -> ValidationResult:
-        """Checks if the provided name for a noteboook has correct ipynb extension.
+        """Checks if the provided name for a notebook has correct ipynb extension.
 
         Args:
             value: provided file name for notebook.

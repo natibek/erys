@@ -31,13 +31,13 @@ EXPANDED_COLOR = "white"
 
 
 # https://github.com/jupyter/enhancement-proposals/blob/master/62-cell-id/cell-id.md
-def get_cell_id(id_length=8):
+def get_cell_id(id_length=8) -> str:
     """Generate the cell id for cells in notebook."""
     return uuid.uuid4().hex[:id_length]
 
 
 class StaticBtn(Static):
-    """Widget to use as button instead of textual's `Button`."""
+    """Widget to use as button instead of Textual's `Button`."""
 
     def on_enter(self, event: Enter):
         """Add left border when hovering over."""
@@ -51,7 +51,7 @@ class StaticBtn(Static):
 class CollapseLabel(Label):
     """Custom label to use as the collapse button for a cell."""
 
-    collapsed = var(False, init=False)  # keep track of collapse state
+    collapsed: var[bool] = var(False, init=False)  # keep track of collapse state
 
     def __init__(
         self, parent_cell: "Cell", collapsed: bool = False, id: str = ""
@@ -157,7 +157,7 @@ class SplitTextArea(CopyTextArea):
 
         self.load_text(string_to_keep)
 
-        # create and mount new cell of the same type as we are spliting from
+        # create and mount new cell of the same type as we are splitting from
         new_cell = self.parent_cell.create_cell(string_for_new_cell)
         self.parent_cell.notebook.cell_container.mount(new_cell, after=self.parent_cell)
         # connect the new cell to the cells next and before it
@@ -248,7 +248,7 @@ class Cell(VerticalGroup):
 
         self.collapsed_display = Static("", id="collapsed-display")
         #
-        # pointers to the next and prevous cells in the notebook
+        # pointers to the next and previous cells in the notebook
         self.next: "Cell | None" = None
         self.prev: "Cell | None" = None
         self._last_click_time: float = 0.0  # keep track of the last mouse click
@@ -358,7 +358,7 @@ class Cell(VerticalGroup):
 
     def merge_cells_with_self(self, cells) -> None:
         """Merge self with a list of cells by combining content in text areas into self. Should be
-        called by the first selected cell in the the cells to merge. The resulting type will be
+        called by the first selected cell in the cells to merge. The resulting type will be
         self.
 
         Args:

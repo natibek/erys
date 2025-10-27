@@ -39,15 +39,14 @@ class NotebookKernel:
         self.kernel_client: BlockingKernelClient | None = None
         self.kernel_manager: KernelManager | None = None
 
-        if self.venv_path:
-            if self._check_for_ipykernel():
-                # only attempt to connect to the kernel if ipykernel is installed
-                self.kernel_path = Path(self.venv_path).joinpath("share/jupyter/")
-                os.environ["JUPYTER_PATH"] = str(self.kernel_path)
-                self.initialized = True
-                self.initialize()
-            else:
-                self.initialized = False
+        if not self.venv_path:
+            self.initialized = False
+        elif self._check_for_ipykernel():
+            # only attempt to connect to the kernel if ipykernel is installed
+            self.kernel_path = Path(self.venv_path).joinpath("share/jupyter/")
+            os.environ["JUPYTER_PATH"] = str(self.kernel_path)
+            self.initialized = True
+            self.initialize()
         else:
             self.initialized = False
 
@@ -75,7 +74,7 @@ class NotebookKernel:
 
     def connect_to_kernel_by_name(self, kernel_name: str) -> None:
         """Connect with a kernel with the given name and start a `BlockingKernelClient`
-        to use for code executation.
+        to use for code execution.
 
         Args:
             kernel_name: name of the kernel to connect to.
@@ -88,7 +87,7 @@ class NotebookKernel:
             self.connect_to_kernel(kernel_spec, kernel_name)
 
     def connect_to_kernel(self, kernel_spec: dict[str, Any], kernel_name) -> None:
-        """Connect with a kernel defined by the given kernel spec nad kernel name.
+        """Connect with a kernel defined by the given kernel spec and kernel name.
         Then start a `BlockingKernelClient` to use for code execution.
 
         Args:
@@ -137,7 +136,7 @@ class NotebookKernel:
     def _install_custom_kernel(
         self, kernel_name: str, display_name: str
     ) -> dict[str, Any]:
-        """Writes the kernel specs for a custom `erys` kernel to the virtual enrivonments
+        """Writes the kernel specs for a custom `erys` kernel to the virtual environment's
         jupyter path.
 
         Returns the created kernel spec.
@@ -169,7 +168,7 @@ class NotebookKernel:
         return kernel_spec
 
     def _check_for_ipykernel(self) -> bool:
-        """Check if the virtual enrivonment has `ipykernel` installed.
+        """Check if the virtual environment has `ipykernel` installed.
 
         Returns: whether `ipykernel` is installed in environment.
         """
@@ -314,7 +313,7 @@ class NotebookKernel:
                 match msg_type:
                     case "status":
                         if msg["content"]["execution_state"] == "idle":
-                            return 
+                            return
                     case "display_data" | "stream" | "error" | "execute_result" | "execute_input":
                         # execute input contains the execution count
                         output = msg["content"]

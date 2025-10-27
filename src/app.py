@@ -68,7 +68,7 @@ class QuitScreen(Screen):
             self.app.pop_screen()
 
     def on_key(self, event: Key) -> None:
-        """Key event handler that pops screen when escapa is pressed.
+        """Key event handler that pops screen when escape is pressed.
 
         Args:
             event: key event.
@@ -148,7 +148,7 @@ class Erys(App):
 
             self.dir_tree = DirectoryNav(Path.cwd(), id="file-tree")
 
-        
+
         self.tabs = Tabs(
             *[Tab(path, id=f"tab{idx}") for idx, path in enumerate(self.paths)]
         )
@@ -329,7 +329,7 @@ class Erys(App):
 
     def open_file(self, f_path: Path) -> None:
         """Open a file. Either change tabs to the file if it is already loaded or
-        create a new file (notebook or regular) in a new tab and swtich to that tab.
+        create a new file (notebook or regular) in a new tab and switch to that tab.
 
         Args:
             path: path to the file.
@@ -350,16 +350,15 @@ class Erys(App):
             new_file = File(path, tab_id, self)
 
         self.switcher.mount(new_file)
-
         self.tabs.active = tab_id
         self.cur_tab += 1
+
 
 
 def main():
     parser = ArgumentParser(
         "erys", description="Terminal Interface for Jupyter Notebooks."
     )
-
     parser.add_argument(
         "notebooks", nargs="*", help="One or more notebooks to open", type=Path
     )

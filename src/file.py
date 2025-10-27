@@ -150,7 +150,7 @@ class File(Container):
             """
             if path:
                 self.path = path
-                # notify after successfuly serializing and saving notebook
+                # notify after successfully serializing and saving notebook
                 self.save_file(path)
                 self.notify(f"{self.path} saved!")
                 # open the saved notebook
