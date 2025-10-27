@@ -141,10 +141,12 @@ class NotebookKernel:
 
         Returns the created kernel spec.
         """
-        spec_path = self.kernel_path.joinpath(f"kernels/{kernel_name}")
         assert self.venv_path
+        spec_path = self.kernel_path.joinpath(f"kernels/{kernel_name}")
+        # platform specific path to python executable
+        python_path = "Scripts/python.exe" if os.name == "nt" else "bin/python"
         argv = [
-            str(Path(self.venv_path).joinpath("bin/python")),
+            str(Path(self.venv_path).joinpath(python_path)),
             "-Xfrozen_modules=off",
             "-m",
             "ipykernel_launcher",
