@@ -20,6 +20,7 @@ import uuid
 import subprocess
 import json
 import os
+import sys
 import shutil
 from pathlib import Path
 
@@ -175,7 +176,7 @@ class NotebookKernel:
         Returns: whether `ipykernel` is installed in environment.
         """
         assert self.venv_path
-        executable = str(Path(self.venv_path).joinpath("bin/python"))
+        executable = sys.executable
         cmd = [
             executable,
             "-c",
