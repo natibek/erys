@@ -634,7 +634,7 @@ class Notebook(Container):
         """Load notebook from a file. Iterate through the cells and generate the `CodeCell` and
         `MarkdownCell` objects from the serialized formats and mount them to the `cell_container`.
         """
-        with open(self.path, "r") as notebook_file:
+        with open(self.path, "r", encoding="utf-8") as notebook_file:
             # if the file is empty, trying to decode json will fail so early exit.
             assert isinstance(self.path, Path)
             if self.path.stat().st_size == 0:
