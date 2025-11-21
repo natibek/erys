@@ -36,6 +36,7 @@ class NotebookKernel:
     def __init__(self) -> None:
         self.ksm = kernelspec.KernelSpecManager()
         self.venv_path = os.getenv("VIRTUAL_ENV") or os.getenv("CONDA_PREFIX")
+        self.executable = sys.executable
         self.in_venv = self.venv_path is not None
         self.kernel_client: BlockingKernelClient | None = None
         self.kernel_manager: KernelManager | None = None
@@ -175,8 +176,9 @@ class NotebookKernel:
 
         Returns: whether `ipykernel` is installed in environment.
         """
-        assert self.venv_path
-        executable = sys.executable
+        assert self.venv
+        assert self.executable
+        executable = self.executable
         cmd = [
             executable,
             "-c",
