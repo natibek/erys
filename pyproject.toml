@@ -57,7 +57,7 @@ version = { attr = "src.__version__" }
 erys = "src.app:main"
 
 [tool.licensepy]
-license_header = """# Copyright {year} {licensee}
+license_header_template = """# Copyright {year} {licensee}
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
