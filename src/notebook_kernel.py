@@ -39,16 +39,20 @@ class NotebookKernel:
         self.kernel_client: BlockingKernelClient | None = None
         self.kernel_manager: KernelManager | None = None
 
-        if not self.venv_path:
-            self.initialized = False
-        elif self._check_for_ipykernel():
+        self.initialized = False
+        self.kernel_path: Path | None = None
+        self.executable: str | None = None
+
+        if self.venv_path and self._check_for_ipykernel():
             # only attempt to connect to the kernel if ipykernel is installed
             self.kernel_path = Path(self.venv_path).joinpath("share/jupyter/")
             os.environ["JUPYTER_PATH"] = str(self.kernel_path)
+
+            python_path = "Scripts/python.exe" if os.name == "nt" else "bin/python"
+            self.executable = str(Path(self.venv_path).joinpath(python_path))
+
             self.initialized = True
             self.initialize()
-        else:
-            self.initialized = False
 
     @property
     def display_name(self) -> str:
@@ -57,7 +61,7 @@ class NotebookKernel:
             assert self.kernel_manager
             assert self.kernel_manager.kernel_spec
             return self.kernel_manager.kernel_spec.display_name
-        except:
+        except Exception:
             return ""
 
     def initialize(self) -> None:
@@ -142,11 +146,11 @@ class NotebookKernel:
         Returns the created kernel spec.
         """
         assert self.venv_path
-        spec_path = self.kernel_path.joinpath(f"kernels/{kernel_name}")
+        assert self.executable
+        assert self.kernel_path
         # platform specific path to python executable
-        python_path = "Scripts/python.exe" if os.name == "nt" else "bin/python"
         argv = [
-            str(Path(self.venv_path).joinpath(python_path)),
+            self.executable,
             "-Xfrozen_modules=off",
             "-m",
             "ipykernel_launcher",
@@ -163,6 +167,7 @@ class NotebookKernel:
             "metadata": {"debugger": True},
         }
 
+        spec_path = self.kernel_path.joinpath(f"kernels/{kernel_name}")
         spec_path.mkdir(parents=True, exist_ok=True)
         with open(spec_path.joinpath("kernel.json"), "w") as spec_file:
             json.dump(kernel_spec, spec_file)
@@ -175,9 +180,10 @@ class NotebookKernel:
         Returns: whether `ipykernel` is installed in environment.
         """
         assert self.venv_path
-        executable = str(Path(self.venv_path).joinpath("bin/python"))
-        cmd = [
-            executable,
+        assert self.executable
+
+        cmd: list[str] = [
+            self.executable,
             "-c",
             "import importlib.util; print(importlib.util.find_spec('ipykernel') is not None)",
         ]
@@ -290,8 +296,10 @@ class NotebookKernel:
 
             if msg["header"]["msg_type"] == "kernel_info_reply":
                 language_info = msg["content"].get("language_info", {})
-        finally:
-            return language_info
+        except Exception:
+            language_info = {}
+
+        return language_info
 
     def run_code(self, code: str) -> Generator[Any, Any, Any]:
         """Run provided code string with the kernel. Uses the iopub channel to get results.
