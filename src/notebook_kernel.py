@@ -43,16 +43,17 @@ class NotebookKernel:
         self.kernel_path: Path | None = None
         self.executable: str | None = None
 
-        if self.venv_path and self._check_for_ipykernel():
-            # only attempt to connect to the kernel if ipykernel is installed
-            self.kernel_path = Path(self.venv_path).joinpath("share/jupyter/")
-            os.environ["JUPYTER_PATH"] = str(self.kernel_path)
-
+        if self.venv_path:
             python_path = "Scripts/python.exe" if os.name == "nt" else "bin/python"
             self.executable = str(Path(self.venv_path).joinpath(python_path))
 
-            self.initialized = True
-            self.initialize()
+            if self._check_for_ipykernel():
+                # only attempt to connect to the kernel if ipykernel is installed
+                self.kernel_path = Path(self.venv_path).joinpath("share/jupyter/")
+                os.environ["JUPYTER_PATH"] = str(self.kernel_path)
+
+                self.initialized = True
+                self.initialize()
 
     @property
     def display_name(self) -> str:
