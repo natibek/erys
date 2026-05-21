@@ -14,29 +14,29 @@
 
 from __future__ import annotations
 
-from textual.app import ComposeResult
-from textual.reactive import var, reactive
-from textual.containers import HorizontalGroup, VerticalGroup, VerticalScroll
-from textual.widgets import Static, Label, ContentSwitcher, Pretty
-from textual.events import Key, DescendantBlur, Click
-
+import base64
 import re
 import tempfile
 import webbrowser
-import base64
+from enum import Enum
 from io import BytesIO
+from typing import Any
+
 from PIL import Image
 from rich.text import Text
-from typing import Any
-from enum import Enum
+from textual.app import ComposeResult
+from textual.containers import HorizontalGroup, VerticalGroup, VerticalScroll
+from textual.events import Click, DescendantBlur, Key
+from textual.reactive import reactive, var
+from textual.widgets import ContentSwitcher, Label, Pretty, Static
 
 from .cell import (
-    CopyTextArea,
-    SplitTextArea,
-    Cell,
-    StaticBtn,
     COLLAPSED_COLOR,
     EXPANDED_COLOR,
+    Cell,
+    CopyTextArea,
+    SplitTextArea,
+    StaticBtn,
 )
 
 
@@ -45,7 +45,9 @@ class OutputCollapseLabel(Label):
 
     collapsed = var(False, init=False)  # keep track of collapse state
 
-    def __init__(self, parent: "CodeCell", collapsed: bool = False, id: str = "") -> None:
+    def __init__(
+        self, parent: "CodeCell", collapsed: bool = False, id: str = ""
+    ) -> None:
         super().__init__("\n┃", id=id)
         self.collapsed = collapsed
         self.parent_cell = parent
@@ -132,7 +134,7 @@ class CodeArea(SplitTextArea):
         """
         if event.key == "ctrl+r":
             event.stop()
-            assert isinstance(self.parent_cell, CodeCell);
+            assert isinstance(self.parent_cell, CodeCell)
             if self.parent_cell.status in [ExecStatus.IDLE, ExecStatus.ERROR]:
                 self.run_worker(self.parent_cell.run_cell)
         elif event.character in self.closing_map:
@@ -367,8 +369,7 @@ class CodeCell(Cell):
         )
 
         self.output_collapse_btn = OutputCollapseLabel(
-            self,
-            id="output-collapse-button"
+            self, id="output-collapse-button"
         ).with_tooltip("Collapse Output")
 
         self.outputs_group = VerticalGroup(id="outputs")
@@ -634,7 +635,6 @@ class CodeCell(Cell):
 
         self.status = ExecStatus.QUEUED
         self.notebook._exec_queue.enqueue(self)
-        self.status = ExecStatus.IDLE
 
     def interrupt_cell(self) -> None:
         """Interrupt kernel when running cell."""

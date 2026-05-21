@@ -12,34 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from textual.app import ComposeResult
-from textual.widgets import TextArea, Markdown, Static
-from textual.reactive import var
-from textual.containers import VerticalScroll, Container, HorizontalScroll
-from textual.events import Key, DescendantFocus, Click
-from textual.binding import Binding
-
-from threading import Lock
-from typing import Any
 import json
-from pathlib import Path
 import time
+from pathlib import Path
+from threading import Lock
+from typing import Any, Type
 
-from typing import Type
+from textual.app import ComposeResult
+from textual.binding import Binding
+from textual.containers import Container, HorizontalScroll, VerticalScroll
+from textual.events import Click, DescendantFocus, Key
+from textual.reactive import var
+from textual.widgets import Markdown, Static, TextArea
 
-from .markdown_cell import MarkdownCell
+from .cell import Cell, CopyTextArea, StaticBtn
 from .code_cell import (
-    CodeCell,
     CodeArea,
+    CodeCell,
     ExecStatus,
-    OutputText,
-    OutputJson,
     OutputAnsi,
+    OutputJson,
+    OutputText,
 )
-from .cell import CopyTextArea, Cell, StaticBtn
-from .notebook_kernel import NotebookKernel
 from .exec_queue import Queue
-
+from .markdown_cell import MarkdownCell
+from .notebook_kernel import NotebookKernel
 
 MAX_UNDO_LEN = 20
 DEFAULT_FILE_NAME = "erys_notebook"
@@ -102,7 +99,9 @@ class Notebook(Container):
         super().__init__(id=id)
 
         self.last_focused: Cell | None = None  # keep track of the last focused cell
-        self.last_copied: dict[str, Any] | None = None  # keep track of the copied/cut cell
+        self.last_copied: dict[str, Any] | None = (
+            None  # keep track of the copied/cut cell
+        )
         self._delete_stack: list[tuple[dict[str, Any], str, str | None]] = []
         self._merge_list: list[Cell] = []  # list of the cells to be merged.
         self._exec_queue: Queue = Queue()
@@ -583,11 +582,17 @@ class Notebook(Container):
             code_cell.status = ExecStatus.RUNNING
             # generator that yields each output from execution
             outputs = self.notebook_kernel.run_code(src)
+
             code_outputs = []
             code_cell.outputs_group.remove_children()
-            for output in outputs:
-                code_outputs.append(output)
-                self.call_after_refresh(code_cell.handle_output, output)
+            try:
+                for output in outputs:
+                    code_outputs.append(output)
+                    self.call_after_refresh(code_cell.handle_output, output)
+            except Exception as e:
+                self.notify(f"Failed to run cell: {e}", severity="error")
+                code_cell.status = ExecStatus.IDLE
+                return
 
             code_cell.outputs = code_outputs
             code_cell.output_collapse_btn.display = len(code_outputs) > 1
@@ -676,7 +681,7 @@ class Notebook(Container):
         relative_to: Cell | None,
         position: str = "after",
         **cell_kwargs,
-    ) -> Cell :
+    ) -> Cell:
         """Add a cell by creating object of `cell_type` with arguments `cell_kwargs` with position
         `position` relative to the widget `relative_to`.
 
@@ -708,7 +713,7 @@ class Notebook(Container):
         relative_to = self.last_focused if not relative_to else relative_to
 
         if not relative_to:
-        # if no cell has been focused on, set the new cell as the focused
+            # if no cell has been focused on, set the new cell as the focused
             self.last_focused = widget
             self.last_focused.focus()
 
@@ -759,7 +764,11 @@ class Notebook(Container):
         kernel_info = self.notebook_kernel.get_kernel_info()
         language_info = self.notebook_kernel.get_language_info()
 
-        cells = [cell.to_nb() for cell in self.cell_container.children if isinstance(cell, Cell)]
+        cells = [
+            cell.to_nb()
+            for cell in self.cell_container.children
+            if isinstance(cell, Cell)
+        ]
 
         return {
             "metadata": {

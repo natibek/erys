@@ -12,16 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Generator
-from jupyter_client import kernelspec
-from jupyter_client.manager import KernelManager
-from jupyter_client.blocking.client import BlockingKernelClient
-import uuid
-import subprocess
 import json
 import os
+import queue
 import shutil
+import subprocess
+import uuid
 from pathlib import Path
+from typing import Any, Generator
+
+from jupyter_client import kernelspec
+from jupyter_client.blocking.client import BlockingKernelClient
+from jupyter_client.manager import KernelManager
 
 ERYS_KERNEL_NAME = "erys_kernel_"
 ERYS_DISPLAY_NAME = "erys_kernel"
@@ -43,8 +45,8 @@ class NotebookKernel:
         self.kernel_path: Path | None = None
         self.executable: str | None = None
 
+        python_path = "Scripts/python.exe" if os.name == "nt" else "bin/python"
         if self.venv_path:
-            python_path = "Scripts/python.exe" if os.name == "nt" else "bin/python"
             self.executable = str(Path(self.venv_path).joinpath(python_path))
 
             if self._check_for_ipykernel():
@@ -54,6 +56,7 @@ class NotebookKernel:
 
                 self.initialized = True
                 self.initialize()
+        # TODO: use a default environment associated with the app
 
     @property
     def display_name(self) -> str:
@@ -116,7 +119,7 @@ class NotebookKernel:
 
         self.kernel_manager.start_kernel()
 
-        self.kernel_client = self.kernel_manager.client() # kernel client
+        self.kernel_client = self.kernel_manager.client()  # kernel client
         self.kernel_client.start_channels()
 
     def _create_new_kernel_spec(self) -> tuple[dict[str, Any], str]:
@@ -250,6 +253,7 @@ class NotebookKernel:
                     break
                 elif kernel_name is None and name.startswith(ERYS_KERNEL_NAME):
                     break
+        # TODO: could finish iterating the loop with a bad kernel name and spec
 
         if target_kernel_spec:
             target_kernel_spec = self._update_kernel_cmd(target_kernel_spec)
@@ -304,6 +308,7 @@ class NotebookKernel:
 
     def run_code(self, code: str) -> Generator[Any, Any, Any]:
         """Run provided code string with the kernel. Uses the iopub channel to get results.
+        It also propagates any errors that are not an empty queue.
 
         Args:
             code: code string.
@@ -314,25 +319,35 @@ class NotebookKernel:
             return
 
         assert self.kernel_client
-        self.kernel_client.execute(code)
+        msg_id = self.kernel_client.execute(code)
 
         # Read the output from the iopub channel
         while True:
             try:
-                msg = self.kernel_client.get_iopub_msg()
+                msg = self.kernel_client.get_iopub_msg(timeout=10)
+                if msg.get("parent_header", {}).get("msg_id") != msg_id:
+                    continue
+
                 msg_type = msg["header"]["msg_type"]
                 match msg_type:
                     case "status":
                         if msg["content"]["execution_state"] == "idle":
                             return
-                    case "display_data" | "stream" | "error" | "execute_result" | "execute_input":
+                    case (
+                        "display_data"
+                        | "stream"
+                        | "error"
+                        | "execute_result"
+                        | "execute_input"
+                    ):
                         # execute input contains the execution count
                         output = msg["content"]
                         output["output_type"] = msg_type
                         yield output
-            except Exception:
+            except queue.Empty:
                 pass
-
+            except Exception:
+                raise
 
     def interrupt_kernel(self) -> None:
         """Interrupt the kernel."""
