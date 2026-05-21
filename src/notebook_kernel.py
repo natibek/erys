@@ -43,11 +43,24 @@ class NotebookKernel:
 
         self.initialized = False
         self.kernel_path: Path | None = None
-        self.executable: str | None = None
+        self.executable: list[str] | None = None
 
         python_path = "Scripts/python.exe" if os.name == "nt" else "bin/python"
         if self.venv_path:
-            self.executable = str(Path(self.venv_path).joinpath(python_path))
+            self.is_conda = os.getenv("CONDA_PREFIX") is not None and not os.getenv(
+                "VIRTUAL_ENV"
+            )
+
+            if self.is_conda:
+                self.executable = [
+                    "conda",
+                    "run",
+                    "-p",
+                    self.venv_path,
+                    "python",
+                ]
+            else:
+                self.executable = [str(Path(self.venv_path).joinpath(python_path))]
 
             if self._check_for_ipykernel():
                 # only attempt to connect to the kernel if ipykernel is installed
@@ -154,7 +167,7 @@ class NotebookKernel:
         assert self.kernel_path
         # platform specific path to python executable
         argv = [
-            self.executable,
+            *self.executable,
             "-Xfrozen_modules=off",
             "-m",
             "ipykernel_launcher",
@@ -187,10 +200,11 @@ class NotebookKernel:
         assert self.executable
 
         cmd: list[str] = [
-            self.executable,
+            *self.executable,
             "-c",
             "import importlib.util; print(importlib.util.find_spec('ipykernel') is not None)",
         ]
+
         result = subprocess.run(
             cmd,
             stdout=subprocess.PIPE,
